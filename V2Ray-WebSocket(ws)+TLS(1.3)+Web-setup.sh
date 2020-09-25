@@ -324,6 +324,7 @@ get_domainlist()
 #安装nignx
 install_nginx()
 {
+    green "正在编译和安装nginx。。。。"
     if ! wget -O ${nginx_version}.tar.gz https://nginx.org/download/${nginx_version}.tar.gz ; then
         red    "获取nginx失败"
         yellow "按回车键继续或者按ctrl+c终止"
@@ -347,7 +348,7 @@ install_nginx()
     if [ $update == 1 ]; then
         backup_domains_web
     fi
-    remove_v2ray_nginx
+    remove_nginx
     if ! make install; then
         red    "nginx安装失败！"
         yellow "请尝试更换系统，建议使用Ubuntu最新版系统"
@@ -360,6 +361,7 @@ install_nginx()
 #安装/更新V2Ray
 install_update_v2ray()
 {
+    green "正在安装/更新V2Ray。。。。"
     if ! curl -LROJ https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh; then
         if ! curl -LROJ https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh; then
             yellow "获取V2Ray脚本失败"
@@ -370,7 +372,7 @@ install_update_v2ray()
     fi
     if ! bash install-release.sh; then
         if ! bash install-release.sh; then
-            yellow "V2Ray安装/升级失败"
+            yellow "安装/更新V2Ray失败"
             yellow "按回车键继续或者按ctrl+c终止"
             read -s
             return 1
@@ -386,9 +388,9 @@ install_update_v2ray_ws_tls()
     {
         if [ $release == ubuntu ] || [ $release == debian ]; then
             if ! dpkg -s $1 2>&1 >/dev/null; then
-                if ! apt -y install $1; then
+                if ! apt -y --no-install-recommends install $1; then
                     apt update
-                    if ! apt -y install $1; then
+                    if ! apt -y --no-install-recommends install $1; then
                         yellow "重要组件安装失败！！"
                         yellow "按回车键继续或者ctrl+c退出"
                         read -s
@@ -408,9 +410,9 @@ install_update_v2ray_ws_tls()
     install_dependence()
     {
         if [ $release == ubuntu ] || [ $release == debian ]; then
-            if ! apt -y install $1; then
+            if ! apt -y --no-install-recommends install $1; then
                 apt update
-                if ! apt -y install $1; then
+                if ! apt -y --no-install-recommends install $1; then
                     yellow "依赖安装失败！！"
                     yellow "按回车键继续或者ctrl+c退出"
                     read -s
@@ -499,7 +501,6 @@ install_update_v2ray_ws_tls()
 
 ##安装nginx
     if [ $nginx_is_installed -eq 0 ] || [ $update -eq 1 ]; then
-        green "正在编译和安装nginx。。。。"
         install_nginx
     else
         tyblue "---------------检测到nginx已存在---------------"
@@ -515,17 +516,15 @@ install_update_v2ray_ws_tls()
             read -p "您的选择是：" choice
         done
         if [ $choice -eq 2 ]; then
-            green "正在编译和安装nginx。。。。"
             install_nginx
-        else
-            remove_v2ray
         fi
     fi
     mkdir ${nginx_prefix}/conf.d
     mkdir ${nginx_prefix}/certs
     config_service_nginx
 
-    green "正在安装V2Ray。。。。"
+#安装V2Ray
+    remove_v2ray
     install_update_v2ray
     systemctl enable v2ray
 
@@ -793,9 +792,9 @@ doupdate()
     updateSystem()
     {
         if ! command -v /usr/bin/do-release-upgrade > /dev/null 2>&1; then
-            if ! apt -y install ubuntu-release-upgrader-core; then
+            if ! apt -y --no-install-recommends install ubuntu-release-upgrader-core; then
                 apt update
-                if ! apt -y install ubuntu-release-upgrader-core; then
+                if ! apt -y --no-install-recommends install ubuntu-release-upgrader-core; then
                     red    "脚本出错！"
                     yellow "按回车键继续或者Ctrl+c退出"
                     read -s
@@ -879,13 +878,12 @@ doupdate()
         red    " 3. 不更新"
         if [ $mem_ok == 2 ]; then
             echo
-            yellow "如果要升级系统，请确保服务器的内存大于等于512MB"
+            yellow "如果要升级系统，请确保服务器的内存>=512MB"
             yellow "否则可能无法开机"
         elif [ $mem_ok == 0 ]; then
             echo
             red "检测到内存过小，升级系统可能导致无法开机，请谨慎选择"
         fi
-        tyblue "------------------------------------------------------------------"
         echo
         choice=""
         while [ "$choice" != "1" -a "$choice" != "2" -a "$choice" != "3" ]
@@ -895,7 +893,6 @@ doupdate()
     else
         green  " 1. 仅更新已安装软件"
         red    " 2. 不更新"
-        tyblue "------------------------------------------------------------------"
         echo
         choice=""
         while [ "$choice" != "1" -a "$choice" != "2" ]
@@ -909,7 +906,7 @@ doupdate()
         apt clean
         yum -y autoremove
         yum clean all
-    elif [[ "$release" == "ubuntu" && "$choice" == "2" || "$release" == "centos" && "$choice" == "1" ]]; then
+    elif [[ $release == "ubuntu" && $choice -eq 2 || $choice -eq 1 ]]; then
         tyblue "-----------------------即将开始更新-----------------------"
         yellow " 更新过程中若有问话/对话框，优先选择yes/y/第一个选项"
         yellow " 按回车键继续。。。"
@@ -988,6 +985,7 @@ uninstall_firewall()
     pkill -9 barad_agent
     rm -rf /usr/local/qcloud
     rm -rf /usr/local/yd.socket.client
+    rm -rf /usr/local/yd.socket.server
     mkdir /usr/local/qcloud
     mkdir /usr/local/qcloud/action
     mkdir /usr/local/qcloud/action/login_banner.sh
@@ -995,11 +993,6 @@ uninstall_firewall()
 }
 
 #卸载v2ray和nginx
-remove_v2ray_nginx()
-{
-    remove_v2ray
-    remove_nginx
-}
 remove_v2ray()
 {
     systemctl stop v2ray
@@ -1813,7 +1806,8 @@ start_menu()
             exit 0
         fi
         enter_temp_dir
-        remove_v2ray_nginx
+        remove_v2ray
+        remove_nginx
         green  "----------------V2Ray-WebSocket+TLS+Web已删除----------------"
         rm -rf "$temp_dir"
     elif [ $choice -eq 6 ]; then
