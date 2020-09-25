@@ -180,6 +180,7 @@ get_all_domains()
 #配置nginx
 config_nginx()
 {
+    config_nginx_init
     local i
     get_all_domains
 cat > $nginx_config<<EOF
@@ -270,31 +271,19 @@ EOF
 #获取证书 参数: domain domainconfig
 get_cert()
 {
-    config_nginx_init
-    mv $nginx_config $nginx_config.bak 2>/dev/null
-cat > $nginx_config<<EOF
-server {
-    listen 80 fastopen=100 reuseport default_server;
-    listen [::]:80 fastopen=100 reuseport default_server;
-    root ${nginx_prefix}/html/$1;
-}
-EOF
-    sleep 2s
-    systemctl restart nginx
     if [ $2 -eq 1 ]; then
         local temp="-d www.$1"
     else
         local temp=""
     fi
-    if ! $HOME/.acme.sh/acme.sh --issue -d $1 $temp --webroot ${nginx_prefix}/html/$1 -k ec-256 -ak ec-256 --ocsp; then
-        $HOME/.acme.sh/acme.sh --issue -d $1 $temp --webroot ${nginx_prefix}/html/$1 -k ec-256 -ak ec-256 --ocsp --debug
+    if ! $HOME/.acme.sh/acme.sh --issue -d $1 $temp -w ${nginx_prefix}/html -k ec-256 -ak ec-256 --pre-hook "mv ${nginx_prefix}/conf/nginx.conf ${nginx_prefix}/conf/nginx.conf.bak && cp ${nginx_prefix}/conf/nginx.conf.default ${nginx_prefix}/conf/nginx.conf && sleep 2s && systemctl restart nginx" --post-hook "mv ${nginx_prefix}/conf/nginx.conf.bak ${nginx_prefix}/conf/nginx.conf && sleep 2s && systemctl restart nginx" --ocsp; then
+        $HOME/.acme.sh/acme.sh --issue -d $1 $temp -w ${nginx_prefix}/html -k ec-256 -ak ec-256 --pre-hook "mv ${nginx_prefix}/conf/nginx.conf ${nginx_prefix}/conf/nginx.conf.bak && cp ${nginx_prefix}/conf/nginx.conf.default ${nginx_prefix}/conf/nginx.conf && sleep 2s && systemctl restart nginx" --post-hook "mv ${nginx_prefix}/conf/nginx.conf.bak ${nginx_prefix}/conf/nginx.conf && sleep 2s && systemctl restart nginx" --ocsp --debug
     fi
     if ! $HOME/.acme.sh/acme.sh --installcert -d $1 --key-file ${nginx_prefix}/certs/${1}.key --fullchain-file ${nginx_prefix}/certs/${1}.cer --reloadcmd "sleep 2s && systemctl restart nginx" --ecc; then
         yellow "证书安装失败，请检查您的域名，确保80端口未打开并且未被占用。并在安装完成后，使用选项8修复"
         yellow "按回车键继续。。。"
         read -s
     fi
-    mv $nginx_config.bak $nginx_config 2>/dev/null
 }
 get_all_certs()
 {
