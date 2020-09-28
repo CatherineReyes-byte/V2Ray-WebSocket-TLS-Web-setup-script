@@ -1021,7 +1021,7 @@ remove_nginx()
     rm -rf ${nginx_prefix}
 }
 
-#获取内核信息
+#获取内核信息 输出：latest_kernel_version 和 your_kernel_version
 get_kernel_info()
 {
     green "正在获取最新版本内核版本号。。。。(60内秒未获取成功自动跳过)"
@@ -1036,6 +1036,7 @@ get_kernel_info()
     local i2=0
     local i3=0
     local kernel_rc=""
+    local kernel_list_temp2
     while ((i2<${#kernel_list_temp[@]}))
     do
         if [[ "${kernel_list_temp[i2]}" =~ "rc" ]] && [ "$kernel_rc" == "" ]; then
@@ -1186,7 +1187,7 @@ install_bbr()
             echo 'net.ipv4.tcp_congestion_control = bbr' >> /etc/sysctl.conf
             sysctl -p
             rm -rf update-kernel.sh
-            if ! wget -O update-kernel.sh https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script/raw/master/update-kernel.sh ; then
+            if ! wget -O update-kernel.sh https://github.com/kirin10000/update-kernel/raw/master/update-kernel.sh; then
                 red    "获取内核升级脚本失败"
                 yellow "按回车键继续或者按ctrl+c终止"
                 read -s
@@ -1271,11 +1272,6 @@ install_bbr()
             install_bbr
             ;;
     esac
-    rm -rf bbr.sh
-    rm -rf update-kernel.sh
-    rm -rf tcp.sh
-    rm -rf bbr2.sh
-    rm -rf install_bbr.log*
 }
 
 #卸载多余内核
@@ -1320,43 +1316,17 @@ remove_other_kernel()
         apt -y purge ${kernel_list_image[@]} ${kernel_list_modules[@]}
     else
         local kernel_list=($(rpm -qa |grep '^kernel-[0-9]\|^kernel-ml-[0-9]'))
-        local kernel_list_modules=($(rpm -qa |grep '^kernel-modules\|^kernel-ml-modules'))
-        local kernel_list_core=($(rpm -qa | grep '^kernel-core\|^kernel-ml-core'))
         local kernel_list_devel=($(rpm -qa | grep '^kernel-devel\|^kernel-ml-devel'))
+        if version_ge $systemVersion 8; then
+            local kernel_list_modules=($(rpm -qa |grep '^kernel-modules\|^kernel-ml-modules'))
+            local kernel_list_core=($(rpm -qa | grep '^kernel-core\|^kernel-ml-core'))
+        fi
         local kernel_now=`uname -r`
         local ok_install=0
         for ((i=${#kernel_list[@]}-1;i>=0;i--))
         do
             if [[ "${kernel_list[$i]}" =~ "$kernel_now" ]] ; then     
                 unset kernel_list[$i]
-                ((ok_install++))
-            fi
-        done
-        if [ $ok_install -lt 1 ] ; then
-            red "未发现正在使用的内核，可能已经被卸载"
-            yellow "按回车键继续。。。"
-            read -s
-            return 1
-        fi
-        ok_install=0
-        for ((i=${#kernel_list_modules[@]}-1;i>=0;i--))
-        do
-            if [[ "${kernel_list_modules[$i]}" =~ "$kernel_now" ]] ; then     
-                unset kernel_list_modules[$i]
-                ((ok_install++))
-            fi
-        done
-        if [ $ok_install -lt 1 ] ; then
-            red "未发现正在使用的内核，可能已经被卸载"
-            yellow "按回车键继续。。。"
-            read -s
-            return 1
-        fi
-        ok_install=0
-        for ((i=${#kernel_list_core[@]}-1;i>=0;i--))
-        do
-            if [[ "${kernel_list_core[$i]}" =~ "$kernel_now" ]] ; then     
-                unset kernel_list_core[$i]
                 ((ok_install++))
             fi
         done
@@ -1380,11 +1350,45 @@ remove_other_kernel()
             read -s
             return 1
         fi
-        if [ ${#kernel_list[@]} -eq 0 ] && [ ${#kernel_list_modules[@]} -eq 0 ] && [ ${#kernel_list_core[@]} -eq 0 ] && [ ${#kernel_list_devel[@]} -eq 0 ]; then
+        if version_ge $systemVersion 8; then
+            ok_install=0
+            for ((i=${#kernel_list_modules[@]}-1;i>=0;i--))
+            do
+                if [[ "${kernel_list_modules[$i]}" =~ "$kernel_now" ]] ; then     
+                    unset kernel_list_modules[$i]
+                    ((ok_install++))
+                fi
+            done
+            if [ $ok_install -lt 1 ] ; then
+                red "未发现正在使用的内核，可能已经被卸载"
+                yellow "按回车键继续。。。"
+                read -s
+                return 1
+            fi
+            ok_install=0
+            for ((i=${#kernel_list_core[@]}-1;i>=0;i--))
+            do
+                if [[ "${kernel_list_core[$i]}" =~ "$kernel_now" ]] ; then     
+                    unset kernel_list_core[$i]
+                    ((ok_install++))
+                fi
+            done
+            if [ $ok_install -lt 1 ] ; then
+                red "未发现正在使用的内核，可能已经被卸载"
+                yellow "按回车键继续。。。"
+                read -s
+                return 1
+            fi
+        fi
+        if ([ ${#kernel_list[@]} -eq 0 ] && [ ${#kernel_list_devel[@]} -eq 0 ]) && (! version_ge $systemVersion 8 || ([ ${#kernel_list_modules[@]} -eq 0 ] && [ ${#kernel_list_core[@]} -eq 0 ])); then
             yellow "没有内核可卸载"
             return 0
         fi
-        yum -y remove ${kernel_list[@]} ${kernel_list_modules[@]} ${kernel_list_core[@]} ${kernel_list_devel[@]}
+        if version_ge $systemVersion 8; then
+            yum -y remove ${kernel_list[@]} ${kernel_list_modules[@]} ${kernel_list_core[@]} ${kernel_list_devel[@]}
+        else
+            yum -y remove ${kernel_list[@]} ${kernel_list_devel[@]}
+        fi
     fi
     green "-------------------卸载完成-------------------"
 }
