@@ -1448,6 +1448,9 @@ echo_end()
         if [ $protocol -eq 2 ]; then
             echo
             yellow " 请尽快将V2Ray升级至v4.28.0+以启用VMessAEAD"
+        elif [ $protocol -eq 1 ]; then
+            echo
+            yellow " 请确保客户端V2Ray版本为v4.30.0+(VLESS在4.30.0版本中对UDP传输进行了一次更新，并且不向下兼容)"
         fi
     else
         echo_end_socks
