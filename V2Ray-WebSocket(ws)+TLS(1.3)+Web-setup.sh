@@ -1381,13 +1381,13 @@ echo_end()
             tyblue " 流控(flow)            ：空"
             tyblue " 加密(encryption)      ：none"
         fi
-        tyblue "-----底层传输方式(transport)-----"
-        tyblue " 传输协议(network)     ：ws"
-        tyblue " 伪装类型(type)        ：none"
-        tyblue " 伪装域名(serverName)  ：空"
-        tyblue " 路径(path)            ：${path}"
-        tyblue " 底层传输安全(security)：tls"
-        tyblue " allowInsecure         ：false"
+        tyblue " -----底层传输方式(transport)-----"
+        tyblue "   传输协议(network)     ：ws"
+        tyblue "   伪装类型(type)        ：none"
+        tyblue "   伪装域名(serverName)  ：空"
+        tyblue "   路径(path)            ：${path}"
+        tyblue "   底层传输安全(security)：tls"
+        tyblue "   allowInsecure         ：false"
         tyblue "-------------------------------------------"
         if [ $protocol -eq 2 ]; then
             echo
