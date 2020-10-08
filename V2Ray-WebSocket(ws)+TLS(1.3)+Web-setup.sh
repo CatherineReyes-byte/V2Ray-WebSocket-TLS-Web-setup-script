@@ -1368,26 +1368,29 @@ echo_end()
         fi
         get_all_domains
         if [ ${#all_domains[@]} -eq 1 ]; then
-            tyblue " 地址(address)         ：${all_domains[@]}"
+            tyblue " address(地址)         ：${all_domains[@]}"
         else
-            tyblue " 地址(address)         ：${all_domains[@]} (任选其一)"
+            tyblue " address(地址)         ：${all_domains[@]} (任选其一)"
         fi
-        tyblue " 端口(port)            ：443"
-        tyblue " 用户ID(id)            ：${v2id}"
+        tyblue " port(端口)            ：443"
+        tyblue " id(用户ID)            ：${v2id}"
         if [ $protocol -eq 2 ]; then
-            tyblue " 额外ID(alterId)       ：0"
-            tyblue " 加密(security)        ：使用cdn，推荐auto;不使用cdn，推荐none"
+            tyblue " alterId(额外ID)       ：0"
+            tyblue " security(加密)        ：使用cdn，推荐auto;不使用cdn，推荐none"
         else
-            tyblue " 流控(flow)            ：空"
-            tyblue " 加密(encryption)      ：none"
+            tyblue " flow(流控)            ：空"
+            tyblue " encryption(加密)      ：none"
         fi
-        tyblue " -----底层传输方式(transport)-----"
-        tyblue "   传输协议(network)     ：ws"
-        tyblue "   伪装类型(type)        ：none"
-        tyblue "   伪装域名(serverName)  ：空"
-        tyblue "   路径(path)            ：${path}"
-        tyblue "   底层传输安全(security)：tls"
-        tyblue "   allowInsecure         ：false"
+        tyblue " -----transport(底层传输方式)-----"
+        tyblue "  network(传输协议)             ：ws"
+        tyblue "  type(伪装类型)                ：none"
+        tyblue "  serverName(伪装域名/TLS服务器)：空"
+        tyblue "  path(路径)                    ：${path}"
+        tyblue "  security(底层传输安全)        ：tls"
+        tyblue "  allowInsecure                 ：false"
+        tyblue "  tcpFastOpen(TCP快速打开)      ：可以启用"
+        tyblue " ---------------其他--------------"
+        tyblue "  Mux(多路复用)                 ：建议关闭"
         tyblue "-------------------------------------------"
         if [ $protocol -eq 2 ]; then
             echo
@@ -1404,7 +1407,7 @@ echo_end()
     tyblue " 修改$nginx_config"
     tyblue " 将v.qq.com修改为你要镜像的网站"
     echo
-    tyblue " 脚本最后更新时间：2020.09.21"
+    tyblue " 脚本最后更新时间：2020.10.08"
     echo
     red    " 此脚本仅供交流学习使用，请勿使用此脚本行违法之事。网络非法外之地，行非法之事，必将接受法律制裁!!!!"
     tyblue " 2019.11"
