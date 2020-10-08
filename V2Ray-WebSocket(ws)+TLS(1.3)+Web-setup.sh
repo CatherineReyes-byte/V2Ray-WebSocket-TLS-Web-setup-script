@@ -1649,6 +1649,10 @@ install_update_v2ray_ws_tls()
         done
         if [ $choice -eq 2 ]; then
             install_nginx
+        else
+            rm -rf ${nginx_prefix}/conf.d
+            rm -rf ${nginx_prefix}/certs
+            cp ${nginx_prefix}/conf/nginx.conf.default ${nginx_prefix}/conf/nginx.conf
         fi
     fi
     mkdir ${nginx_prefix}/conf.d
@@ -1671,8 +1675,8 @@ install_update_v2ray_ws_tls()
         v2id=`cat /proc/sys/kernel/random/uuid`
         get_random_port
     fi
-    config_v2ray
     config_nginx
+    config_v2ray
     if [ $update == 1 ]; then
         mv "${temp_dir}/domain_backup/"* ${nginx_prefix}/html 2>/dev/null
     else
