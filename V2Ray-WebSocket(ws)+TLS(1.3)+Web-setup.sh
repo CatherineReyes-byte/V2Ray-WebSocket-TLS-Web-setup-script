@@ -16,6 +16,10 @@ path=""
 v2id=""
 
 #定义几个颜色
+purple()
+{
+    echo -e "\033[35;1m${@}\033[0m"
+}
 tyblue()                           #天依蓝
 {
     echo -e "\033[36;1m${@}\033[0m"
@@ -383,7 +387,7 @@ doupdate()
         done
     }
     echo -e "\n\n\n"
-    tyblue "-----------------------是否将更新系统组件？-----------------------"
+    tyblue "-----------------------是否更新系统组件？-----------------------"
     if [ "$release" == "ubuntu" ]; then
         green  " 1. 更新已安装软件，并升级系统(仅对ubuntu有效)"
         green  " 2. 仅更新已安装软件"
@@ -690,7 +694,7 @@ install_bbr()
         fi
         green "   正在使用：${bbr_info}"
     else
-        red "   bbr未启用！！"
+        red "   bbr未启用"
     fi
     echo
     choice=""
@@ -898,7 +902,7 @@ readProtocolConfig()
     tyblue " 2. VMess(AEAD)"
     red    " 3. socks(5) (不推荐)"
     echo
-    green  "不使用cdn推荐VLESS，使用cdn推荐VMess(AEAD)"
+    green  " 不使用cdn推荐VLESS，使用cdn推荐VMess(AEAD)"
     echo
     protocol=""
     while [[ "$protocol" != "1" && "$protocol" != "2" && "$protocol" != "3" ]]
@@ -1004,7 +1008,7 @@ get_cert()
         $HOME/.acme.sh/acme.sh --issue -d $1 $temp -w ${nginx_prefix}/html -k ec-256 -ak ec-256 --pre-hook "mv ${nginx_prefix}/conf/nginx.conf ${nginx_prefix}/conf/nginx.conf.bak && cp ${nginx_prefix}/conf/nginx.conf.default ${nginx_prefix}/conf/nginx.conf && sleep 2s && systemctl restart nginx" --post-hook "mv ${nginx_prefix}/conf/nginx.conf.bak ${nginx_prefix}/conf/nginx.conf && sleep 2s && systemctl restart nginx" --ocsp --debug
     fi
     if ! $HOME/.acme.sh/acme.sh --installcert -d $1 --key-file ${nginx_prefix}/certs/${1}.key --fullchain-file ${nginx_prefix}/certs/${1}.cer --reloadcmd "sleep 2s && systemctl restart nginx" --ecc; then
-        yellow "证书安装失败，请检查您的域名，确保80端口未打开并且未被占用。并在安装完成后，使用选项8修复"
+        yellow "证书安装失败，请检查您的域名，确保80端口未打开并且未被占用。并在安装完成后，使用选项9修复"
         yellow "按回车键继续。。。"
         read -s
     fi
@@ -1358,40 +1362,49 @@ get_all_webs()
 
 echo_end()
 {
+    get_all_domains
     echo -e "\n\n\n"
-    tyblue "----------V2Ray-WebSocket+TLS+Web----------"
+    tyblue "------------------------ V2Ray-WebSocket+TLS+Web -----------------------"
     if [ $protocol -ne 3 ]; then
         if [ $protocol -eq 1 ]; then
             tyblue " 服务器类型            ：VLESS"
         elif [ $protocol -eq 2 ]; then
             tyblue " 服务器类型            ：VMess"
         fi
-        get_all_domains
         if [ ${#all_domains[@]} -eq 1 ]; then
             tyblue " address(地址)         ：${all_domains[@]}"
         else
             tyblue " address(地址)         ：${all_domains[@]} (任选其一)"
         fi
+        purple "  (Qv2ray:主机;Shadowrocket:服务器)"
         tyblue " port(端口)            ：443"
-        tyblue " id(用户ID)            ：${v2id}"
+        tyblue " id(用户ID/UUID)       ：${v2id}"
         if [ $protocol -eq 2 ]; then
             tyblue " alterId(额外ID)       ：0"
-            tyblue " security(加密)        ：使用cdn，推荐auto;不使用cdn，推荐none"
+            tyblue " security(加密方式)    ：使用cdn，推荐auto;不使用cdn，推荐none"
+            purple "  (Qv2ray:安全选项;Shadowrocket:算法)"
         else
             tyblue " flow(流控)            ：空"
             tyblue " encryption(加密)      ：none"
         fi
-        tyblue " -----transport(底层传输方式)-----"
+        tyblue " ---Transport/StreamSettings(底层传输方式/流设置)---"
         tyblue "  network(传输协议)             ：ws"
-        tyblue "  type(伪装类型)                ：none"
-        tyblue "  serverName(伪装域名/TLS服务器)：空"
+        purple "   (Shadowrocket:传输方式:WebSocket)"
         tyblue "  path(路径)                    ：${path}"
-        tyblue "  security(底层传输安全)        ：tls"
+        tyblue "  Host                          ：空"
+        purple "   (V2RayN(G):伪装域名;Qv2ray:协议设置-请求头;Shadowrocket:WebSocket-服务器)"
+        tyblue "  security(传输层加密)          ：tls"
+        purple "   (V2RayN(G):底层传输安全;Qv2ray:TLS设置-安全类型)"
+        tyblue "  serverName(验证服务端证书域名)：空"
+        purple "   (V2RayN(G):伪装域名;Qv2ray:TLS设置-服务器地址;Shadowrocket:WebSocket-服务器)"
         tyblue "  allowInsecure                 ：false"
+        purple "   (Qv2ray:允许不安全的证书(不打勾);Shadowrocket:允许不安全(关闭))"
         tyblue "  tcpFastOpen(TCP快速打开)      ：可以启用"
-        tyblue " ---------------其他--------------"
+        tyblue " ------------------------其他-----------------------"
         tyblue "  Mux(多路复用)                 ：建议关闭"
-        tyblue "-------------------------------------------"
+        tyblue "  Sniffing(流量探测)            ：建议开启"
+        purple "   (Qv2ray:首选项-入站设置-SOCKS设置-嗅探)"
+        tyblue "------------------------------------------------------------------------"
         if [ $protocol -eq 2 ]; then
             echo
             yellow " 请尽快将V2Ray升级至v4.28.0+以启用VMessAEAD"
@@ -1407,7 +1420,7 @@ echo_end()
     tyblue " 修改$nginx_config"
     tyblue " 将v.qq.com修改为你要镜像的网站"
     echo
-    tyblue " 脚本最后更新时间：2020.10.08"
+    tyblue " 脚本最后更新时间：2020.10.09"
     echo
     red    " 此脚本仅供交流学习使用，请勿使用此脚本行违法之事。网络非法外之地，行非法之事，必将接受法律制裁!!!!"
     tyblue " 2019.11"
@@ -1421,55 +1434,63 @@ echo_end_socks()
     yellow "---------------以下是文本---------------"
 cat <<EOF
 {
-  "log": {
-    "access": "",
-    "error": "",
-    "loglevel": "warning"
-  },
-  "inbounds": [
-    {
-      "listen": "127.0.0.1",
-      "port": 10808,
-      "protocol": "socks",
-      "sniffing": {
-        "enabled": true,
-        "destOverride": ["http", "tls"]
-      },
-      "settings": {
-        "auth": "noauth",
-        "userLevel": 10,
-        "udp": true
-      }
-    }
-  ],
-  "outbounds": [
-    {
-      "protocol": "socks",
-      "settings": {
-        "servers": [
-          {
-            "address": "你的域名",
-            "level": 10,
-            "port": 443
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "tls",
-        "wsSettings": {
-          "path": "$path"
+    "log": {
+        "loglevel": "warning"
+    },
+    "inbounds": [
+        {
+            "listen": "127.0.0.1",
+            "port": 10808,
+            "protocol": "socks",
+            "sniffing": {
+                "enabled": true,
+                "destOverride": ["http", "tls"]
+            },
+            "settings": {
+                "auth": "noauth",
+                "userLevel": 10,
+                "udp": true
+            }
         }
-      },
-      "mux": {
-        "enabled": true,
-        "concurrency": 8
-      }
-    }
-  ]
+    ],
+    "outbounds": [
+        {
+            "protocol": "socks",
+            "settings": {
+                "servers": [
+                    {
+EOF
+if [ ${#all_domains[@]} -eq 1 ]; then
+    echo '                        "address": "'${all_domains[@]}'",'
+else
+    echo '                        "address": "'${all_domains[@]}' (任选其一)",'
+fi
+cat <<EOF
+                        "level": 10,
+                        "port": 443
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "ws",
+                "security": "tls",
+                "wsSettings": {
+                    "path": "$path"
+                },
+                "sockopt": {
+                    "tcpFastOpen": true
+                }
+            },
+            "mux": {
+                "enabled": true,
+                "concurrency": 8
+            }
+        }
+    ]
 }
 EOF
-    tyblue "----------------------------------------"
+    yellow "----------------------------------------"
+    tyblue "------------------------------------------------------------------------"
 }
 
 #获取配置信息 path port v2id protocol tlsVersion
