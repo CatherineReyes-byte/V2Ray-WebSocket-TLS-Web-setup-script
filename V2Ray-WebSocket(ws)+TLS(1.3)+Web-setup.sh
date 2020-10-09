@@ -1376,7 +1376,7 @@ echo_end()
         else
             tyblue " address(地址)         ：${all_domains[@]} (任选其一)"
         fi
-        purple "  (Qv2ray:主机;Shadowrocket:服务器)"
+        purple "  (Qv2ray:主机)"
         tyblue " port(端口)            ：443"
         tyblue " id(用户ID/UUID)       ：${v2id}"
         if [ $protocol -eq 2 ]; then
@@ -1389,14 +1389,14 @@ echo_end()
         fi
         tyblue " ---Transport/StreamSettings(底层传输方式/流设置)---"
         tyblue "  network(传输协议)             ：ws"
-        purple "   (Shadowrocket:传输方式:WebSocket)"
+        purple "   (Shadowrocket:传输方式:websocket)"
         tyblue "  path(路径)                    ：${path}"
         tyblue "  Host                          ：空"
-        purple "   (V2RayN(G):伪装域名;Qv2ray:协议设置-请求头;Shadowrocket:WebSocket-服务器)"
+        purple "   (V2RayN(G):伪装域名;Qv2ray:协议设置-请求头)"
         tyblue "  security(传输层加密)          ：tls"
         purple "   (V2RayN(G):底层传输安全;Qv2ray:TLS设置-安全类型)"
         tyblue "  serverName(验证服务端证书域名)：空"
-        purple "   (V2RayN(G):伪装域名;Qv2ray:TLS设置-服务器地址;Shadowrocket:WebSocket-服务器)"
+        purple "   (V2RayN(G):伪装域名;Qv2ray:TLS设置-服务器地址;Shadowrocket:Peer 名称)"
         tyblue "  allowInsecure                 ：false"
         purple "   (Qv2ray:允许不安全的证书(不打勾);Shadowrocket:允许不安全(关闭))"
         tyblue "  tcpFastOpen(TCP快速打开)      ：可以启用"
