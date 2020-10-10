@@ -704,17 +704,6 @@ install_bbr()
     done
     case "$choice" in
         1)
-            if [ $mem_ok == 2 ]; then
-                red "请确保服务器的内存>=512MB，否则更换最新版内核可能无法开机"
-                yellow "按回车键继续或ctrl+c中止"
-                read -s
-                echo
-            elif [ $mem_ok == 0 ]; then 
-                red "检测到内存过小，更换最新版内核可能无法开机，请谨慎选择"
-                yellow "按回车键以继续或ctrl+c中止"
-                read -s
-                echo
-            fi
             sed -i '/^[ ]*net.core.default_qdisc[ ]*=/d' /etc/sysctl.conf
             sed -i '/^[ ]*net.ipv4.tcp_congestion_control[ ]*=/d' /etc/sysctl.conf
             echo 'net.core.default_qdisc = fq' >> /etc/sysctl.conf
@@ -1269,6 +1258,9 @@ config_v2ray()
 {
 cat > $v2ray_config <<EOF
 {
+    "log": {
+        "loglevel": "none"
+    },
     "inbounds": [
         {
             "port": $port,
