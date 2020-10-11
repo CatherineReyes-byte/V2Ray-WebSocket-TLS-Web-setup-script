@@ -1750,14 +1750,9 @@ change_protocol()
     fi
     config_v2ray
     systemctl restart v2ray
+    get_domainlist
     green "更换完成！！"
-    if [ $old_protocol -eq 3 ]; then
-        green "用户ID：$v2id"
-    fi
-    if [ $protocol -eq 3 ]; then
-        get_domainlist
-        echo_end
-    fi
+    echo_end
 }
 
 #开始菜单
@@ -1825,8 +1820,8 @@ start_menu()
     tyblue "      (会覆盖原有域名配置，安装过程中域名输错了造成V2Ray无法启动可以用此选项修复)"
     tyblue "  10. 添加域名"
     tyblue "  11. 删除域名"
-    tyblue "  12. 修改用户ID(id)"
-    tyblue "  13. 修改路径(path)"
+    tyblue "  12. 修改id(用户ID/UUID)"
+    tyblue "  13. 修改path(路径)"
     tyblue "  14. 修改V2Ray底层传输协议"
     echo
     tyblue " ----------------其它----------------"
@@ -1983,7 +1978,7 @@ start_menu()
             exit 0
         fi
         $HOME/.acme.sh/acme.sh --remove --domain ${domain_list[$delete]} --ecc
-        rm -rf $HOME/.acme.sh/${domain_list[$delete]}
+        rm -rf $HOME/.acme.sh/${domain_list[$delete]}_ecc
         rm -rf ${nginx_prefix}/html/${domain_list[$delete]}
         unset domain_list[$delete]
         unset domainconfig_list[$delete]
@@ -2003,10 +1998,10 @@ start_menu()
         fi
         get_base_information
         if [ $protocol -eq 3 ]; then
-            red "socks模式没有ID！！"
+            red "socks模式没有id！！"
             exit 1
         fi
-        tyblue "您现在的ID是：$v2id"
+        tyblue "您现在的id是：$v2id"
         choice=""
         while [ "$choice" != "y" -a "$choice" != "n" ]
         do
@@ -2016,12 +2011,12 @@ start_menu()
         if [ $choice == "n" ]; then
             exit 0
         fi
-        tyblue "-------------请输入新的ID-------------"
+        tyblue "-------------请输入新的id-------------"
         read v2id
         config_v2ray
         systemctl restart v2ray
         green "更换成功！！"
-        green "新ID：$v2id"
+        green "新id：$v2id"
     elif [ $choice -eq 13 ]; then
         if [ $is_installed == 0 ]; then
             red "请先安装V2Ray-WebSocket+TLS+Web！！"
