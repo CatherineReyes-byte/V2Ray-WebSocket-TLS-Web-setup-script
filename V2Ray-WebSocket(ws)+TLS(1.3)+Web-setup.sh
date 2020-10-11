@@ -1679,6 +1679,7 @@ install_update_v2ray_ws_tls()
 
     green "正在获取证书。。。。"
     [ -e $HOME/.acme.sh/acme.sh ] && $HOME/.acme.sh/acme.sh --uninstall
+    rm -rf $HOME/.acme.sh
     curl https://get.acme.sh | sh
     $HOME/.acme.sh/acme.sh --upgrade --auto-upgrade
     get_all_certs
@@ -1882,6 +1883,7 @@ start_menu()
         remove_v2ray
         remove_nginx
         $HOME/.acme.sh/acme.sh --uninstall
+        rm -rf $HOME/.acme.sh
         green  "删除完成！"
     elif [ $choice -eq 6 ]; then
         if systemctl is-active v2ray > /dev/null 2>&1 && systemctl is-active nginx > /dev/null 2>&1; then
@@ -1917,6 +1919,7 @@ start_menu()
             exit 1
         fi
         $HOME/.acme.sh/acme.sh --uninstall
+        rm -rf $HOME/.acme.sh
         curl https://get.acme.sh | sh
         get_domainlist
         for i in ${!domain_list[@]}
@@ -1980,6 +1983,7 @@ start_menu()
             exit 0
         fi
         $HOME/.acme.sh/acme.sh --remove --domain ${domain_list[$delete]} --ecc
+        rm -rf $HOME/.acme.sh/${domain_list[$delete]}
         rm -rf ${nginx_prefix}/html/${domain_list[$delete]}
         unset domain_list[$delete]
         unset domainconfig_list[$delete]
