@@ -1,6 +1,6 @@
 #!/bin/bash
 nginx_version="nginx-1.19.3"
-openssl_version="openssl-openssl-3.0.0-alpha6"
+openssl_version="openssl-openssl-3.0.0-alpha7"
 v2ray_config="/usr/local/etc/v2ray/config.json"
 nginx_prefix="/etc/nginx"
 nginx_config="${nginx_prefix}/conf.d/v2ray.conf"
@@ -74,7 +74,7 @@ turn_off_selinux()
 {
     check_important_dependence_installed selinux-utils libselinux-utils
     setenforce 0
-    sed -i 's/^[ ]*SELINUX[ ]*=[ ]*enforcing[ ]*$/SELINUX=disabled/g' /etc/sysconfig/selinux
+    sed -i 's/^[ \t]*SELINUX[ \t]*=[ \t]*enforcing[ \t]*$/SELINUX=disabled/g' /etc/sysconfig/selinux
 }
 if [[ -f /.dockerenv ]] || grep -q 'docker\|lxc' /proc/1/cgroup && [[ "$(type -P systemctl)" ]]; then
     true
@@ -102,7 +102,7 @@ else
     red "不支持的系统或apt/yum/dnf缺失"
     exit 1
 fi
-if getenforce 2>/dev/null | grep -wqi Enforcing || grep -Eqi '^[ ]*SELINUX[ ]*=[ ]*enforcing[ ]*$' /etc/sysconfig/selinux 2>/dev/null; then
+if getenforce 2>/dev/null | grep -wqi Enforcing || grep -Eqi '^[ '$'\t]*SELINUX[ '$'\t]*=[ '$'\t]*enforcing[ '$'\t]*$' /etc/sysconfig/selinux 2>/dev/null; then
     yellow "检测到SELinux开启，脚本可能无法正常运行"
     choice=""
     while [[ "$choice" != "y" && "$choice" != "n" ]]
@@ -351,7 +351,7 @@ doupdate()
         local i
         for ((i=0;i<2;i++))
         do
-            sed -i '/^[ ]*Prompt[ ]*=/d' /etc/update-manager/release-upgrades
+            sed -i '/^[ \t]*Prompt[ \t]*=/d' /etc/update-manager/release-upgrades
             echo 'Prompt=normal' >> /etc/update-manager/release-upgrades
             case "$choice" in
                 1)
@@ -383,7 +383,7 @@ doupdate()
                 do-release-upgrade
             fi
             apt update
-            apt -y full-upgrade
+            apt -y --auto-remove --purge full-upgrade
         done
     }
     echo -e "\n\n\n"
@@ -417,7 +417,6 @@ doupdate()
         done
     fi
     if [[ "$release" == "ubuntu" && "$choice" == "1" ]]; then
-        apt -y --purge autoremove
         updateSystem
         apt -y --purge autoremove
         apt clean
@@ -428,9 +427,8 @@ doupdate()
         read -s
         $redhat_package_manager -y autoremove
         $redhat_package_manager -y update
-        apt -y --purge autoremove
         apt update
-        apt -y full-upgrade
+        apt -y --auto-remove --purge full-upgrade
         apt -y --purge autoremove
         apt clean
         $redhat_package_manager -y autoremove
@@ -706,8 +704,8 @@ install_bbr()
     done
     case "$choice" in
         1)
-            sed -i '/^[ ]*net.core.default_qdisc[ ]*=/d' /etc/sysctl.conf
-            sed -i '/^[ ]*net.ipv4.tcp_congestion_control[ ]*=/d' /etc/sysctl.conf
+            sed -i '/^[ \t]*net.core.default_qdisc[ \t]*=/d' /etc/sysctl.conf
+            sed -i '/^[ \t]*net.ipv4.tcp_congestion_control[ \t]*=/d' /etc/sysctl.conf
             echo 'net.core.default_qdisc = fq' >> /etc/sysctl.conf
             echo 'net.ipv4.tcp_congestion_control = bbr' >> /etc/sysctl.conf
             sysctl -p
@@ -729,8 +727,8 @@ install_bbr()
             install_bbr
             ;;
         2)
-            sed -i '/^[ ]*net.core.default_qdisc[ ]*=/d' /etc/sysctl.conf
-            sed -i '/^[ ]*net.ipv4.tcp_congestion_control[ ]*=/d' /etc/sysctl.conf
+            sed -i '/^[ \t]*net.core.default_qdisc[ \t]*=/d' /etc/sysctl.conf
+            sed -i '/^[ \t]*net.ipv4.tcp_congestion_control[ \t]*=/d' /etc/sysctl.conf
             echo 'net.core.default_qdisc = fq' >> /etc/sysctl.conf
             echo 'net.ipv4.tcp_congestion_control = bbr' >> /etc/sysctl.conf
             sysctl -p
@@ -984,7 +982,20 @@ install_update_v2ray()
         read -s
         return 1
     fi
-    return 0
+    if ! grep -qE 'LimitNPROC|LimitNOFILE' /etc/systemd/system/v2ray.service; then
+        echo >> /etc/systemd/system/v2ray.service
+        echo "[Service]" >> /etc/systemd/system/v2ray.service
+        echo "LimitNPROC=500" >> /etc/systemd/system/v2ray.service
+        echo "LimitNOFILE=1000000" >> /etc/systemd/system/v2ray.service
+        systemctl daemon-reload
+    fi
+    if ! grep -qE 'LimitNPROC|LimitNOFILE' /etc/systemd/system/v2ray@.service; then
+        echo >> /etc/systemd/system/v2ray@.service
+        echo "[Service]" >> /etc/systemd/system/v2ray@.service
+        echo "LimitNPROC=500" >> /etc/systemd/system/v2ray@.service
+        echo "LimitNOFILE=1000000" >> /etc/systemd/system/v2ray@.service
+        systemctl daemon-reload
+    fi
 }
 
 #获取证书 参数: domain domainconfig
@@ -1589,8 +1600,8 @@ install_update_v2ray_ws_tls()
         echo >> /etc/sysctl.conf
         echo "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" >> /etc/sysctl.conf
     fi
-    if ! grep -Eq "^[ ]*net.ipv4.tcp_fastopen[ ]*=[ ]*3[ ]*$" /etc/sysctl.conf || ! sysctl net.ipv4.tcp_fastopen | grep -wq 3; then
-        sed -i '/^[ ]*net.ipv4.tcp_fastopen[ ]*=/d' /etc/sysctl.conf
+    if ! grep -Eq '^[ '$'\t]*net.ipv4.tcp_fastopen[ '$'\t]*=[ '$'\t]*3[ '$'\t]*$' /etc/sysctl.conf || ! sysctl net.ipv4.tcp_fastopen | grep -wq 3; then
+        sed -i '/^[ \t]*net.ipv4.tcp_fastopen[ \t]*=/d' /etc/sysctl.conf
         echo 'net.ipv4.tcp_fastopen = 3' >> /etc/sysctl.conf
         sysctl -p
     fi
@@ -1727,7 +1738,7 @@ change_dns()
     done
     if [ $choice == y ]; then
         if ! grep -q "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" /etc/resolv.conf; then
-            sed -i 's/^[ ]*nameserver /#&/' /etc/resolv.conf
+            sed -i 's/^[ \t]*nameserver[ \t][ \t]*/#&/' /etc/resolv.conf
             echo >> /etc/resolv.conf
             echo 'nameserver 1.1.1.1' >> /etc/resolv.conf
             echo 'nameserver 1.0.0.1' >> /etc/resolv.conf
