@@ -1,5 +1,5 @@
 #!/bin/bash
-nginx_version="nginx-1.19.3"
+nginx_version="nginx-1.19.4"
 openssl_version="openssl-openssl-3.0.0-alpha7"
 v2ray_config="/usr/local/etc/v2ray/config.json"
 nginx_prefix="/etc/nginx"
@@ -323,9 +323,9 @@ doupdate()
         fi
         echo -e "\n\n\n"
         tyblue "------------------请选择升级系统版本--------------------"
-        tyblue " 1.最新beta版(现在是20.10)(2020.08)"
-        tyblue " 2.最新发行版(现在是20.04)(2020.08)"
-        tyblue " 3.最新LTS版(现在是20.04)(2020.08)"
+        tyblue " 1.最新beta版(现在是20.10)(2020.10)"
+        tyblue " 2.最新发行版(现在是20.04)(2020.10)"
+        tyblue " 3.最新LTS版(现在是20.04)(2020.10)"
         tyblue "-------------------------版本说明-------------------------"
         tyblue " beta版：即测试版"
         tyblue " 发行版：即稳定版"
@@ -713,7 +713,6 @@ install_bbr()
             echo 'net.core.default_qdisc = fq' >> /etc/sysctl.conf
             echo 'net.ipv4.tcp_congestion_control = bbr' >> /etc/sysctl.conf
             sysctl -p
-            rm -rf update-kernel.sh
             if ! wget -O update-kernel.sh https://github.com/kirin10000/update-kernel/raw/master/update-kernel.sh; then
                 red    "获取内核升级脚本失败"
                 yellow "按回车键继续或者按ctrl+c终止"
@@ -738,7 +737,6 @@ install_bbr()
             sysctl -p
             sleep 1s
             if ! sysctl net.ipv4.tcp_congestion_control | grep -q "bbr"; then
-                rm -rf bbr.sh
                 if ! wget -O bbr.sh https://github.com/teddysun/across/raw/master/bbr.sh; then
                     red    "获取bbr脚本失败"
                     yellow "按回车键继续或者按ctrl+c终止"
@@ -756,7 +754,6 @@ install_bbr()
             tyblue " 重启后，请再次选择这个选项完成bbr2剩余部分安装(开启bbr和ECN)"
             yellow " 按回车键以继续。。。。"
             read -s
-            rm -rf bbr2.sh
             if [ $release == "ubuntu" ] || [ $release == "other-debian" ]; then
                 if ! wget -O bbr2.sh https://github.com/yeyingorg/bbr2.sh/raw/master/bbr2.sh; then
                     red    "获取bbr2脚本失败"
@@ -775,7 +772,6 @@ install_bbr()
             install_bbr
             ;;
         4)
-            rm -rf tcp.sh
             if ! wget -O tcp.sh "https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/tcp.sh"; then
                 red    "获取脚本失败"
                 yellow "按回车键继续或者按ctrl+c终止"
@@ -895,7 +891,7 @@ readProtocolConfig()
     tyblue " 2. VMess(AEAD)"
     red    " 3. socks(5) (不推荐)"
     echo
-    green  " 不使用cdn推荐VLESS，使用cdn推荐VMess(AEAD)"
+    green  " 不使用CDN推荐VLESS，使用cdn推荐VMess(AEAD)"
     echo
     protocol=""
     while [[ "$protocol" != "1" && "$protocol" != "2" && "$protocol" != "3" ]]
@@ -961,6 +957,7 @@ install_nginx()
     fi
     tar -zxf ${openssl_version}.tar.gz
     cd ${nginx_version}
+    sed -i "s/OPTIMIZE[ \t]*=>[ \t]*'-O'/OPTIMIZE          => '-O3'/g" src/http/modules/perl/Makefile.PL
     ./configure --prefix=${nginx_prefix} --with-openssl=../$openssl_version --with-openssl-opt="enable-ec_nistp_64_gcc_128 shared threads zlib-dynamic sctp" --with-mail=dynamic --with-mail_ssl_module --with-stream=dynamic --with-stream_ssl_module --with-stream_realip_module --with-stream_geoip_module=dynamic --with-stream_ssl_preread_module --with-http_ssl_module --with-http_v2_module --with-http_realip_module --with-http_addition_module --with-http_xslt_module=dynamic --with-http_image_filter_module=dynamic --with-http_geoip_module=dynamic --with-http_sub_module --with-http_dav_module --with-http_flv_module --with-http_mp4_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_auth_request_module --with-http_random_index_module --with-http_secure_link_module --with-http_degradation_module --with-http_slice_module --with-http_stub_status_module --with-http_perl_module=dynamic --with-pcre --with-libatomic --with-compat --with-cpp_test_module --with-google_perftools_module --with-file-aio --with-threads --with-poll_module --with-select_module --with-cc-opt="-Wno-error -g0 -O3"
     if ! make; then
         red    "nginx编译失败！"
@@ -986,6 +983,8 @@ install_update_v2ray()
         read -s
         return 1
     fi
+    #解决透明代理 Too many files 问题
+    #https://guide.v2fly.org/app/tproxy.html#%E8%A7%A3%E5%86%B3-too-many-open-files-%E9%97%AE%E9%A2%98
     if ! grep -qE 'LimitNPROC|LimitNOFILE' /etc/systemd/system/v2ray.service /etc/systemd/system/v2ray@.service; then
         echo >> /etc/systemd/system/v2ray.service
         echo "[Service]" >> /etc/systemd/system/v2ray.service
@@ -1378,7 +1377,7 @@ echo_end()
     if [ $protocol -ne 3 ]; then
         if [ $protocol -eq 1 ]; then
             tyblue " 服务器类型            ：VLESS"
-        elif [ $protocol -eq 2 ]; then
+        else
             tyblue " 服务器类型            ：VMess"
         fi
         if [ ${#all_domains[@]} -eq 1 ]; then
@@ -1389,13 +1388,13 @@ echo_end()
         purple "  (Qv2ray:主机)"
         tyblue " port(端口)            ：443"
         tyblue " id(用户ID/UUID)       ：${v2id}"
-        if [ $protocol -eq 2 ]; then
+        if [ $protocol -eq 1 ]; then
+            tyblue " flow(流控)            ：空"
+            tyblue " encryption(加密)      ：none"
+        else
             tyblue " alterId(额外ID)       ：0"
             tyblue " security(加密方式)    ：使用cdn，推荐auto;不使用cdn，推荐none"
             purple "  (Qv2ray:安全选项;Shadowrocket:算法)"
-        else
-            tyblue " flow(流控)            ：空"
-            tyblue " encryption(加密)      ：none"
         fi
         tyblue " ---Transport/StreamSettings(底层传输方式/流设置)---"
         tyblue "  network(传输协议)             ：ws"
@@ -1415,11 +1414,10 @@ echo_end()
         tyblue "  Sniffing(流量探测)            ：建议开启"
         purple "   (Qv2ray:首选项-入站设置-SOCKS设置-嗅探)"
         tyblue "------------------------------------------------------------------------"
+        echo
         if [ $protocol -eq 2 ]; then
-            echo
             yellow " 请尽快将V2Ray升级至v4.28.0+以启用VMessAEAD"
-        elif [ $protocol -eq 1 ]; then
-            echo
+        else
             yellow " 请确保客户端V2Ray版本为v4.30.0+(VLESS在4.30.0版本中对UDP传输进行了一次更新，并且不向下兼容)"
         fi
     else
@@ -1430,7 +1428,7 @@ echo_end()
     tyblue " 修改$nginx_config"
     tyblue " 将v.qq.com修改为你要镜像的网站"
     echo
-    tyblue " 脚本最后更新时间：2020.10.09"
+    tyblue " 脚本最后更新时间：2020.10.28"
     echo
     red    " 此脚本仅供交流学习使用，请勿使用此脚本行违法之事。网络非法外之地，行非法之事，必将接受法律制裁!!!!"
     tyblue " 2019.11"
@@ -1727,55 +1725,51 @@ install_update_v2ray_ws_tls()
     rm -rf "$temp_dir"
 }
 
-#修改dns
-change_dns()
-{
-    red    "注意！！"
-    red    "1.部分云服务商(如阿里云)使用本地服务器作为软件包源，修改dns后需要换源！！"
-    red    "  如果听不懂，那么请在安装完v2ray+ws+tls后再修改dns，并且修改完后不要重新安装"
-    red    "2.Ubuntu系统重启后可能会恢复原dns"
-    tyblue "此操作将修改dns服务器为1.1.1.1和1.0.0.1(cloudflare公共dns)"
-    choice=""
-    while [ "$choice" != "y" -a "$choice" != "n" ]
-    do
-        tyblue "是否要继续?(y/n)"
-        read choice
-    done
-    if [ $choice == y ]; then
-        if ! grep -q "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" /etc/resolv.conf; then
-            sed -i 's/^[ \t]*nameserver[ \t][ \t]*/#&/' /etc/resolv.conf
-            echo >> /etc/resolv.conf
-            echo 'nameserver 1.1.1.1' >> /etc/resolv.conf
-            echo 'nameserver 1.0.0.1' >> /etc/resolv.conf
-            echo '#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script' >> /etc/resolv.conf
-        fi
-        green "修改完成！！"
-    fi
-}
-
-#更换协议
-change_protocol()
-{
-    get_base_information
-    local old_protocol=$protocol
-    readProtocolConfig
-    if [ $old_protocol -eq $protocol ]; then
-        red "协议未更换"
-        return
-    fi
-    if [ $old_protocol -eq 3 ]; then
-        v2id=`cat /proc/sys/kernel/random/uuid`
-    fi
-    config_v2ray
-    systemctl restart v2ray
-    get_domainlist
-    green "更换完成！！"
-    echo_end
-}
-
 #开始菜单
 start_menu()
 {
+    change_protocol()
+    {
+        get_base_information
+        local old_protocol=$protocol
+        readProtocolConfig
+        if [ $old_protocol -eq $protocol ]; then
+            red "协议未更换"
+            return
+        fi
+        if [ $old_protocol -eq 3 ]; then
+            v2id=`cat /proc/sys/kernel/random/uuid`
+        fi
+        config_v2ray
+        systemctl restart v2ray
+        get_domainlist
+        green "更换完成！！"
+        echo_end
+    }
+    change_dns()
+    {
+        red    "注意！！"
+        red    "1.部分云服务商(如阿里云)使用本地服务器作为软件包源，修改dns后需要换源！！"
+        red    "  如果不明白，那么请在安装完成后再修改dns，并且修改完后不要重新安装"
+        red    "2.Ubuntu系统重启后可能会恢复原dns"
+        tyblue "此操作将修改dns服务器为1.1.1.1和1.0.0.1(cloudflare公共dns)"
+        choice=""
+        while [ "$choice" != "y" -a "$choice" != "n" ]
+        do
+            tyblue "是否要继续?(y/n)"
+            read choice
+        done
+        if [ $choice == y ]; then
+            if ! grep -q "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" /etc/resolv.conf; then
+                sed -i 's/^[ \t]*nameserver[ \t][ \t]*/#&/' /etc/resolv.conf
+                echo >> /etc/resolv.conf
+                echo 'nameserver 1.1.1.1' >> /etc/resolv.conf
+                echo 'nameserver 1.0.0.1' >> /etc/resolv.conf
+                echo '#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script' >> /etc/resolv.conf
+            fi
+            green "修改完成！！"
+        fi
+    }
     if [ $v2ray_is_installed -eq 1 ]; then
         local v2ray_status="\033[32m已安装"
     else
@@ -1840,7 +1834,7 @@ start_menu()
     tyblue "  11. 删除域名"
     tyblue "  12. 修改id(用户ID/UUID)"
     tyblue "  13. 修改path(路径)"
-    tyblue "  14. 修改V2Ray底层传输协议"
+    tyblue "  14. 修改V2Ray传输协议"
     echo
     tyblue " ----------------其它----------------"
     tyblue "  15. 尝试修复退格键无法使用的问题"
