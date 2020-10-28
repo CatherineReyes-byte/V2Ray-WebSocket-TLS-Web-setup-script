@@ -4,15 +4,17 @@ https://github.com/kirin10000/V2Ray-TLS-Web-setup-script
 ## 脚本特性
 1.集成 多版本bbr/锐速 安装选项
  
-2.支持多种系统 (Ubuntu CentOS Debian deepin ...) 
+2.支持多种系统 (Ubuntu CentOS Debian deepin fedora ...) 
  
 3.集成TLS配置多版本安装选项 
  
 4.集成删除阿里云盾和腾讯云盾功能 (仅对阿里云和腾讯云服务器有效)
 
-5.使用nginx作为网站服务
+5.使用nginx作为网站服务和进行WebSocket反向代理
 
 6.使用acme.sh自动申请域名证书
+
+7.自动更新域名证书
 ## 注意事项
 1.此脚本需要一个解析到服务器的域名 (支持cdn)
 
@@ -23,11 +25,11 @@ https://github.com/kirin10000/V2Ray-TLS-Web-setup-script
 ### 1. 安装wget
 Debian基系统(包括Ubuntu、Debian、deepin)：
 ```bash
-command -v wget > /dev/null 2>&1 || apt -y install wget || (apt update && apt -y install wget)
+[[ "$(type -P wget)" ]] || apt -y install wget || (apt update && apt -y install wget)
 ```
-Red Hat基系统(包括CentOS)：
+Red Hat基系统(包括CentOS、fedora)：
 ```bash
-command -v wget > /dev/null 2>&1 || yum -y install wget
+[[ "$(type -P wget)" ]] || dnf -y install wget || yum -y install wget
 ```
 ### 2. 获取脚本
 ```bash
