@@ -88,6 +88,10 @@ else
     red "仅支持使用systemd的系统！"
     exit 1
 fi
+if [[ ! -d /dev/shm ]]; then
+    red "/dev/shm不存在，不支持的系统"
+    exit 1
+fi
 if [[ "$(type -P apt)" ]]; then
     if [[ "$(type -P dnf)" ]] || [[ "$(type -P yum)" ]]; then
         red "同时存在apt和yum/dnf"
@@ -323,8 +327,8 @@ doupdate()
         fi
         echo -e "\n\n\n"
         tyblue "------------------请选择升级系统版本--------------------"
-        tyblue " 1.最新beta版(现在是20.10)(2020.10)"
-        tyblue " 2.最新发行版(现在是20.04)(2020.10)"
+        tyblue " 1.最新beta版(现在是21.04)(2020.10)"
+        tyblue " 2.最新发行版(现在是20.10)(2020.10)"
         tyblue " 3.最新LTS版(现在是20.04)(2020.10)"
         tyblue "-------------------------版本说明-------------------------"
         tyblue " beta版：即测试版"
@@ -333,8 +337,8 @@ doupdate()
         tyblue "-------------------------注意事项-------------------------"
         yellow " 1.升级系统可能需要15分钟或更久"
         yellow " 2.升级系统完成后将会重启，重启后，请再次运行此脚本完成剩余安装"
-        yellow " 3.有的时候不能一次性更新到所选择的版本，可能要更新两次"
-        yellow " 4.升级过程中若有问话/对话框，如果看不懂，优先选择yes/y/第一个选项"
+        yellow " 3.有的时候不能一次性更新到所选择的版本，可能要更新多次"
+        yellow " 4.升级过程中遇到问话/对话框，如果不明白，选择yes/y/第一个选项"
         yellow " 5.升级系统后以下配置可能会恢复系统默认配置："
         yellow "     ssh端口   ssh超时时间    bbr加速(恢复到关闭状态)"
         tyblue "----------------------------------------------------------"
@@ -1041,7 +1045,7 @@ worker_processes  auto;
 #error_log  logs/error.log  info;
 
 #pid        logs/nginx.pid;
-google_perftools_profiles ${nginx_prefix}/tcmalloc_temp/tcmalloc;
+google_perftools_profiles /dev/shm/nginx_tcmalloc/tcmalloc;
 
 events {
     worker_connections  1024;
@@ -1254,12 +1258,12 @@ Wants=network-online.target
 [Service]
 Type=forking
 User=root
-ExecStartPre=/bin/rm -rf ${nginx_prefix}/tcmalloc_temp
-ExecStartPre=/bin/mkdir ${nginx_prefix}/tcmalloc_temp
-ExecStartPre=/bin/chmod 777 ${nginx_prefix}/tcmalloc_temp
+ExecStartPre=/bin/rm -rf /dev/shm/nginx_tcmalloc
+ExecStartPre=/bin/mkdir /dev/shm/nginx_tcmalloc
+ExecStartPre=/bin/chmod 0777 /dev/shm/nginx_tcmalloc
 ExecStart=${nginx_prefix}/sbin/nginx
 ExecStop=${nginx_prefix}/sbin/nginx -s stop
-ExecStopPost=/bin/rm -rf ${nginx_prefix}/tcmalloc_temp
+ExecStopPost=/bin/rm -rf /dev/shm/nginx_tcmalloc
 PrivateTmp=true
 
 [Install]
