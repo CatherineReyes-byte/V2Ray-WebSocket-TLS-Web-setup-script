@@ -1325,9 +1325,6 @@ cat >> $v2ray_config <<EOF
                 "network": "ws",
                 "wsSettings": {
                     "path": "$path"
-                },
-                "sockopt": {
-                    "tcpFastOpen": true
                 }
             }
         }
