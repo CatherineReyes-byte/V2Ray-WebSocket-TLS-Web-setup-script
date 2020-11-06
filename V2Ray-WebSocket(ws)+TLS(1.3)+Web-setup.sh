@@ -1,6 +1,6 @@
 #!/bin/bash
 nginx_version="nginx-1.19.4"
-openssl_version="openssl-openssl-3.0.0-alpha7"
+openssl_version="openssl-openssl-3.0.0-alpha8"
 v2ray_config="/usr/local/etc/v2ray/config.json"
 nginx_prefix="/etc/nginx"
 nginx_config="${nginx_prefix}/conf.d/v2ray.conf"
@@ -11,7 +11,6 @@ unset domainconfig_list
 unset pretend_list
 protocol=""
 tlsVersion=""
-port=""
 path=""
 v2id=""
 
@@ -164,16 +163,6 @@ if [ -e /usr/bin/v2ray ] && [ -e /etc/nginx ]; then
     yellow "请选择1选项重新安装"
     sleep 3s
 fi
-
-#获取随机端口号
-get_random_port()
-{
-    port=`shuf -i 1000-65535 -n1`
-    while netstat -at | awk '{print $4}' | tail -n +3 | awk -F : '{print $2}' | grep -q ^$port$ || netstat -at | awk '{print $4}' | tail -n +3 | awk -F : '{print $2}' | grep -q ^$port$
-    do
-        port=`shuf -i 1000-65535 -n1`
-    done
-}
 
 #将域名列表转化为一个数组
 get_all_domains()
@@ -350,7 +339,7 @@ doupdate()
         do
             read -p "您的选择是：" choice
         done
-        if [ "$(cat /etc/ssh/sshd_config |grep -i "^port " | awk '{print $2}')" != "22" ] && [ "$(cat /etc/ssh/sshd_config |grep -i "^port " | awk '{print $2}')" != "" ]; then
+        if ! [[ "$(cat /etc/ssh/sshd_config | grep -i "^[ \t]*port " | awk '{print $2}')" =~ ^("22"|"")$ ]]; then
             red "检测到ssh端口号被修改"
             red "升级系统后ssh端口号可能恢复默认值(22)"
             yellow "按回车键继续。。。"
@@ -987,17 +976,28 @@ install_update_v2ray()
         read -s
         return 1
     fi
-    #解决透明代理 Too many files 问题
-    #https://guide.v2fly.org/app/tproxy.html#%E8%A7%A3%E5%86%B3-too-many-open-files-%E9%97%AE%E9%A2%98
-    if ! grep -qE 'LimitNPROC|LimitNOFILE' /etc/systemd/system/v2ray.service /etc/systemd/system/v2ray@.service; then
-        echo >> /etc/systemd/system/v2ray.service
-        echo "[Service]" >> /etc/systemd/system/v2ray.service
-        echo "LimitNPROC=10000" >> /etc/systemd/system/v2ray.service
-        echo "LimitNOFILE=1000000" >> /etc/systemd/system/v2ray.service
-        echo >> /etc/systemd/system/v2ray@.service
-        echo "[Service]" >> /etc/systemd/system/v2ray@.service
-        echo "LimitNPROC=10000" >> /etc/systemd/system/v2ray@.service
-        echo "LimitNOFILE=1000000" >> /etc/systemd/system/v2ray@.service
+    if ! grep -q '#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script' /etc/systemd/system/v2ray.service /etc/systemd/system/v2ray@.service; then
+        local temp="/etc/systemd/system/v2ray.service"
+        local i=2
+        while ((i!=0))
+        do
+            echo >> $temp
+            echo "[Service]" >> $temp
+            echo "ExecStartPre=/bin/rm -rf /dev/shm/v2ray_unixsocket" >> $temp
+            echo "ExecStartPre=/bin/mkdir /dev/shm/v2ray_unixsocket" >> $temp
+            echo "ExecStartPre=/bin/chmod 711 /dev/shm/v2ray_unixsocket" >> $temp
+            echo "ExecStopPost=/bin/rm -rf /dev/shm/v2ray_unixsocket" >> $temp
+            #解决透明代理 Too many files 问题
+            #https://guide.v2fly.org/app/tproxy.html#%E8%A7%A3%E5%86%B3-too-many-open-files-%E9%97%AE%E9%A2%98
+            if ! grep -qE 'LimitNPROC|LimitNOFILE' $temp; then
+                echo "LimitNPROC=10000" >> $temp
+                echo "LimitNOFILE=1000000" >> $temp
+            fi
+            echo >> $temp
+            echo "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" >> $temp
+            temp="/etc/systemd/system/v2ray@.service"
+            ((i--))
+        done
         systemctl daemon-reload
         sleep 1s
         if systemctl is-active v2ray > /dev/null 2>&1; then
@@ -1221,11 +1221,10 @@ EOF
 cat >> $nginx_config<<EOF
     location = $path {
         proxy_redirect off;
-        proxy_pass http://127.0.0.1:$port;
+        proxy_pass http://unix:/dev/shm/v2ray_unixsocket/ws.sock;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$http_host;
     }
 EOF
         if [ ${pretend_list[i]} -eq 2 ]; then
@@ -1284,8 +1283,7 @@ cat > $v2ray_config <<EOF
     },
     "inbounds": [
         {
-            "port": $port,
-            "listen": "127.0.0.1",
+            "listen": "/dev/shm/v2ray_unixsocket/ws.sock",
 EOF
     if [ $protocol -eq 1 ]; then
 cat >> $v2ray_config <<EOF
@@ -1337,7 +1335,6 @@ cat >> $v2ray_config <<EOF
     "outbounds": [
         {
             "protocol": "freedom",
-            "settings": {},
             "streamSettings": {
                 "sockopt": {
                     "tcpFastOpen": true
@@ -1432,7 +1429,7 @@ echo_end()
     tyblue " 修改$nginx_config"
     tyblue " 将v.qq.com修改为你要镜像的网站"
     echo
-    tyblue " 脚本最后更新时间：2020.10.28"
+    tyblue " 脚本最后更新时间：2020.11.07"
     echo
     red    " 此脚本仅供交流学习使用，请勿使用此脚本行违法之事。网络非法外之地，行非法之事，必将接受法律制裁!!!!"
     tyblue " 2019.11"
@@ -1505,7 +1502,7 @@ EOF
     tyblue "------------------------------------------------------------------------"
 }
 
-#获取配置信息 path port v2id protocol tlsVersion
+#获取配置信息 path v2id protocol tlsVersion
 get_base_information()
 {
     path=`grep path $v2ray_config`
@@ -1517,9 +1514,6 @@ get_base_information()
     else
         tlsVersion=2
     fi
-    port=`grep port $v2ray_config`
-    port=${port##*' '}
-    port=${port%%,*}
     if grep -q "id" $v2ray_config; then
         v2id=`grep id $v2ray_config`
         v2id=${v2id##*' '}
@@ -1552,9 +1546,9 @@ get_domainlist()
         else
             domainconfig_list[i]=1
         fi
-        if awk 'NR=='"$(($line+19-$tlsVersion))"' {print $0}' $nginx_config | grep -q "proxy_pass"; then
+        if awk 'NR=='"$(($line+18-$tlsVersion))"' {print $0}' $nginx_config | grep -q "proxy_pass"; then
             pretend_list[i]=2
-        elif awk 'NR=='"$(($line+19-$tlsVersion))"' {print $0}' $nginx_config | grep -q "return 403"; then
+        elif awk 'NR=='"$(($line+18-$tlsVersion))"' {print $0}' $nginx_config | grep -q "return 403"; then
             pretend_list[i]=1
         else
             pretend_list[i]=3
@@ -1708,7 +1702,6 @@ install_update_v2ray_ws_tls()
         path=$(cat /dev/urandom | head -c 8 | md5sum | head -c 7)
         path="/$path"
         v2id=`cat /proc/sys/kernel/random/uuid`
-        get_random_port
     fi
     config_nginx
     config_v2ray
