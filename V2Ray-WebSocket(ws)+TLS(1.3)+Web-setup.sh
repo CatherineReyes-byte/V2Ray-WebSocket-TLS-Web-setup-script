@@ -1960,6 +1960,7 @@ start_menu()
             red "请先安装V2Ray-WebSocket+TLS+Web！！"
             exit 1
         fi
+        get_base_information
         get_domainlist
         if [ ${#domain_list[@]} -le 1 ]; then
             red "只有一个域名"
