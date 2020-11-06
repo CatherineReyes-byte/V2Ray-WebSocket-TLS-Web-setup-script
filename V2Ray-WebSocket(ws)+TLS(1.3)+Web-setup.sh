@@ -1264,6 +1264,8 @@ ExecStart=${nginx_prefix}/sbin/nginx
 ExecStop=${nginx_prefix}/sbin/nginx -s stop
 ExecStopPost=/bin/rm -rf /dev/shm/nginx_tcmalloc
 PrivateTmp=true
+LimitNPROC=10000
+LimitNOFILE=1000000
 
 [Install]
 WantedBy=multi-user.target
