@@ -1730,16 +1730,16 @@ start_menu()
         local old_protocol=$protocol
         readProtocolConfig
         if [ $old_protocol -eq $protocol ]; then
-            red "协议未更换"
-            return
+            red "传输协议未更换"
+            return 0
         fi
         if [ $old_protocol -eq 3 ]; then
             v2id=`cat /proc/sys/kernel/random/uuid`
         fi
+        get_domainlist
         config_v2ray
         systemctl restart v2ray
-        get_domainlist
-        green "更换完成！！"
+        green "更换成功！！"
         echo_end
     }
     change_dns()
@@ -1921,9 +1921,18 @@ start_menu()
             red "请先安装V2Ray-WebSocket+TLS+Web！！"
             exit 1
         fi
+        yellow "重置域名将删除所有现有域名(包括域名证书、伪装网站等)"
+        choice=""
+        while [[ "$choice" != "y" && "$choice" != "n" ]]
+        do
+            tyblue "是否继续？(y/n)"
+            read choice
+        done
+        green "重置域名中。。。"
         $HOME/.acme.sh/acme.sh --uninstall
         rm -rf $HOME/.acme.sh
         curl https://get.acme.sh | sh
+        get_base_information
         get_domainlist
         for i in ${!domain_list[@]}
         do
@@ -1933,7 +1942,6 @@ start_menu()
         unset domainconfig_list
         unset pretend_list
         readDomain
-        get_base_information
         readTlsConfig
         get_all_certs
         get_all_webs
@@ -1947,9 +1955,9 @@ start_menu()
             red "请先安装V2Ray-WebSocket+TLS+Web！！"
             exit 1
         fi
+        get_base_information
         get_domainlist
         readDomain
-        get_base_information
         get_cert ${domain_list[-1]} ${domainconfig_list[-1]}
         get_web ${domain_list[-1]} ${pretend_list[-1]}
         config_nginx
@@ -1979,7 +1987,7 @@ start_menu()
         done
         yellow " ${#domain_list[@]}. 不删除"
         local delete=""
-        while ! [[ $delete =~ ^[1-9][0-9]{0,}|0$ ]] || [ $delete -gt ${#domain_list[@]} ]
+        while ! [[ "$delete" =~ ^([1-9][0-9]*|0)$ ]] || [ $delete -gt ${#domain_list[@]} ]
         do
             read -p "你的选择是：" delete
         done
@@ -1995,7 +2003,6 @@ start_menu()
         domain_list=(${domain_list[@]})
         domainconfig_list=(${domainconfig_list[@]})
         pretend_list=(${pretend_list[@]})
-        get_base_information
         config_nginx
         systemctl restart nginx
         green "域名删除完成！！"
