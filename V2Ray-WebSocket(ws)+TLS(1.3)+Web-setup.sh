@@ -882,7 +882,7 @@ readProtocolConfig()
     tyblue " 2. VMess(AEAD)"
     red    " 3. socks(5) (不推荐)"
     echo
-    green  " 不使用CDN推荐VLESS，使用cdn推荐VMess(AEAD)"
+    green  " 不使用CDN推荐VLESS，使用CDN推荐VMess(AEAD)"
     echo
     protocol=""
     while [[ "$protocol" != "1" && "$protocol" != "2" && "$protocol" != "3" ]]
@@ -1391,7 +1391,7 @@ echo_end()
             tyblue " encryption(加密)      ：none"
         else
             tyblue " alterId(额外ID)       ：0"
-            tyblue " security(加密方式)    ：使用cdn，推荐auto;不使用cdn，推荐none"
+            tyblue " security(加密方式)    ：使用CDN，推荐auto;不使用CDN，推荐none"
             purple "  (Qv2ray:安全选项;Shadowrocket:算法)"
         fi
         tyblue " ---Transport/StreamSettings(底层传输方式/流设置)---"
