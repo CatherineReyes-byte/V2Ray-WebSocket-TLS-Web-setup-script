@@ -1,5 +1,5 @@
 # V2Ray-WebSocket(ws)+TLS(1.3)+Web搭建/管理脚本
-## 也许你在找V2Ray-TCP+XTLS+Web搭建/管理脚本
+## 也许你在找VLESS-TCP+XTLS+Web搭建/管理脚本
 https://github.com/kirin10000/V2Ray-TLS-Web-setup-script
 ## 脚本特性
 1.集成 多版本bbr/锐速 安装选项
