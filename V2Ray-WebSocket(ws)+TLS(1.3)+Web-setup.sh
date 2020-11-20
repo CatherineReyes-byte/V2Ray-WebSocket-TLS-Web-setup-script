@@ -1,11 +1,18 @@
 #!/bin/bash
+
+#安装选项
 nginx_version="nginx-1.19.4"
 openssl_version="openssl-openssl-3.0.0-alpha8"
 v2ray_config="/usr/local/etc/v2ray/config.json"
 nginx_prefix="/etc/nginx"
 nginx_config="${nginx_prefix}/conf.d/v2ray.conf"
 temp_dir="/temp_install_update_v2ray_ws_tls"
+v2ray_is_installed=""
+nginx_is_installed=""
+is_installed=""
+update=""
 
+#配置信息
 unset domain_list
 unset domainconfig_list
 unset pretend_list
@@ -13,6 +20,13 @@ protocol=""
 tlsVersion=""
 path=""
 v2id=""
+
+#系统信息
+release=""
+systemVersion=""
+redhat_package_manager=""
+redhat_version=""
+mem_ok=""
 
 #定义几个颜色
 purple()
@@ -40,8 +54,52 @@ if [ "$EUID" != "0" ]; then
     red "请用root用户运行此脚本！！"
     exit 1
 fi
+if [[ ! -f '/etc/os-release' ]]; then
+    red "系统版本太老，V2Ray官方脚本不支持"
+    exit 1
+fi
+if [[ -f /.dockerenv ]] || grep -q 'docker\|lxc' /proc/1/cgroup && [[ "$(type -P systemctl)" ]]; then
+    true
+elif [[ -d /run/systemd/system ]] || grep -q systemd <(ls -l /sbin/init); then
+    true
+else
+    red "仅支持使用systemd的系统！"
+    exit 1
+fi
+if [[ ! -d /dev/shm ]]; then
+    red "/dev/shm不存在，不支持的系统"
+    exit 1
+fi
+if [ "$(cat /proc/meminfo |grep 'MemTotal' |awk '{print $3}' | tr [A-Z] [a-z])" == "kb" ]; then
+    if [ "$(cat /proc/meminfo |grep 'MemTotal' |awk '{print $2}')" -le 400000 ]; then
+        mem_ok=0
+    else
+        mem_ok=1
+    fi
+else
+    mem_ok=2
+fi
+if [ -e /usr/local/bin/v2ray ]; then
+    v2ray_is_installed=1
+else
+    v2ray_is_installed=0
+fi
+if [ -e $nginx_config ]; then
+    nginx_is_installed=1
+else
+    nginx_is_installed=0
+fi
+if [ $v2ray_is_installed -eq 1 ] && [ $nginx_is_installed -eq 1 ]; then
+    is_installed=1
+else
+    is_installed=0
+fi
+if [ -e /usr/bin/v2ray ] && [ -e /etc/nginx ]; then
+    yellow "当前安装的V2Ray版本过旧，脚本已不再支持！"
+    yellow "请选择1选项重新安装"
+    sleep 3s
+fi
 
-#确保系统支持
 check_important_dependence_installed()
 {
     if [ $release == "ubuntu" ] || [ $release == "other-debian" ]; then
@@ -69,100 +127,77 @@ version_ge()
 {
     test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" == "$1"
 }
-turn_off_selinux()
+#获取系统信息
+get_system_info()
 {
-    check_important_dependence_installed selinux-utils libselinux-utils
-    setenforce 0
-    sed -i 's/^[ \t]*SELINUX[ \t]*=[ \t]*enforcing[ \t]*$/SELINUX=disabled/g' /etc/sysconfig/selinux
-}
-if [[ ! -f '/etc/os-release' ]]; then
-    red "系统版本太老，V2Ray官方脚本不支持"
-    exit 1
-fi
-if [[ -f /.dockerenv ]] || grep -q 'docker\|lxc' /proc/1/cgroup && [[ "$(type -P systemctl)" ]]; then
-    true
-elif [[ -d /run/systemd/system ]] || grep -q systemd <(ls -l /sbin/init); then
-    true
-else
-    red "仅支持使用systemd的系统！"
-    exit 1
-fi
-if [[ ! -d /dev/shm ]]; then
-    red "/dev/shm不存在，不支持的系统"
-    exit 1
-fi
-if [[ "$(type -P apt)" ]]; then
-    if [[ "$(type -P dnf)" ]] || [[ "$(type -P yum)" ]]; then
-        red "同时存在apt和yum/dnf"
-        red "不支持的系统！"
+    if [[ "$(type -P apt)" ]]; then
+        if [[ "$(type -P dnf)" ]] || [[ "$(type -P yum)" ]]; then
+            red "同时存在apt和yum/dnf"
+            red "不支持的系统！"
+            exit 1
+        fi
+        release="other-debian"
+        redhat_package_manager="true"
+    elif [[ "$(type -P dnf)" ]]; then
+        release="other-redhat"
+        redhat_package_manager="dnf"
+    elif [[ "$(type -P yum)" ]]; then
+        release="other-redhat"
+        redhat_package_manager="yum"
+    else
+        red "不支持的系统或apt/yum/dnf缺失"
         exit 1
     fi
-    release="other-debian"
-    redhat_package_manager="true"
-elif [[ "$(type -P dnf)" ]]; then
-    release="other-redhat"
-    redhat_package_manager="dnf"
-elif [[ "$(type -P yum)" ]]; then
-    release="other-redhat"
-    redhat_package_manager="yum"
-else
-    red "不支持的系统或apt/yum/dnf缺失"
-    exit 1
-fi
-if getenforce 2>/dev/null | grep -wqi Enforcing || grep -Eqi '^[ '$'\t]*SELINUX[ '$'\t]*=[ '$'\t]*enforcing[ '$'\t]*$' /etc/sysconfig/selinux 2>/dev/null; then
-    yellow "检测到SELinux开启，脚本可能无法正常运行"
-    choice=""
-    while [[ "$choice" != "y" && "$choice" != "n" ]]
-    do
-        tyblue "尝试关闭SELinux?(y/n)"
-        read choice
-    done
-    if [ $choice == y ]; then
-        turn_off_selinux
-    else
-        exit 0
+    check_important_dependence_installed lsb-release redhat-lsb-core
+    if lsb_release -a 2>/dev/null | grep -qi "ubuntu"; then
+        release="ubuntu"
+    elif lsb_release -a 2>/dev/null | grep -qi "centos"; then
+        release="centos"
+    elif lsb_release -a 2>/dev/null | grep -qi "fedora"; then
+        release="fedora"
     fi
-fi
-check_important_dependence_installed lsb-release redhat-lsb-core
-if lsb_release -a 2>/dev/null | grep -qi "ubuntu"; then
-    release="ubuntu"
-elif lsb_release -a 2>/dev/null | grep -qi "centos"; then
-    release="centos"
-elif lsb_release -a 2>/dev/null | grep -qi "fedora"; then
-    release="fedora"
-fi
-systemVersion=`lsb_release -r -s`
-if [ $release == "fedora" ]; then
-    if version_ge $systemVersion 28; then
-        redhat_version=8
-    elif version_ge $systemVersion 19; then
-        redhat_version=7
-    elif version_ge $systemVersion 12; then
-        redhat_version=6
+    systemVersion=`lsb_release -r -s`
+    if [ $release == "fedora" ]; then
+        if version_ge $systemVersion 28; then
+            redhat_version=8
+        elif version_ge $systemVersion 19; then
+            redhat_version=7
+        elif version_ge $systemVersion 12; then
+            redhat_version=6
+        else
+            redhat_version=5
+        fi
     else
-        redhat_version=5
+        redhat_version=$systemVersion
     fi
-else
-    redhat_version=$systemVersion
-fi
-check_important_dependence_installed ca-certificates ca-certificates
+}
 
-#判断内存是否太小
-if [ "$(cat /proc/meminfo |grep 'MemTotal' |awk '{print $3}' | tr [A-Z] [a-z])" == "kb" ]; then
-    if [ "$(cat /proc/meminfo |grep 'MemTotal' |awk '{print $2}')" -le 400000 ]; then
-        mem_ok=0
-    else
-        mem_ok=1
+#检查SELinux
+check_SELinux()
+{
+    turn_off_selinux()
+    {
+        check_important_dependence_installed selinux-utils libselinux-utils
+        setenforce 0
+        sed -i 's/^[ \t]*SELINUX[ \t]*=[ \t]*enforcing[ \t]*$/SELINUX=disabled/g' /etc/sysconfig/selinux
+        $redhat_package_manager -y remove libselinux-utils
+        apt -y purge selinux-utils
+    }
+    if getenforce 2>/dev/null | grep -wqi Enforcing || grep -Eq '^[ '$'\t]*SELINUX[ '$'\t]*=[ '$'\t]*enforcing[ '$'\t]*$' /etc/sysconfig/selinux 2>/dev/null; then
+        yellow "检测到SELinux开启，脚本可能无法正常运行"
+        choice=""
+        while [[ "$choice" != "y" && "$choice" != "n" ]]
+        do
+            tyblue "尝试关闭SELinux?(y/n)"
+            read choice
+        done
+        if [ $choice == y ]; then
+            turn_off_selinux
+        else
+            exit 0
+        fi
     fi
-else
-    mem_ok=2
-fi
-
-if [ -e /usr/bin/v2ray ] && [ -e /etc/nginx ]; then
-    yellow "当前安装的V2Ray版本过旧，脚本已不再支持！"
-    yellow "请选择1选项重新安装"
-    sleep 3s
-fi
+}
 
 #将域名列表转化为一个数组
 get_all_domains()
@@ -177,26 +212,6 @@ get_all_domains()
             all_domains+=("${domain_list[i]}")
         fi
     done
-}
-
-#判断是否已经安装
-check_is_installed()
-{
-    if [ -e /usr/local/bin/v2ray ]; then
-        v2ray_is_installed=1
-    else
-        v2ray_is_installed=0
-    fi
-    if [ -e $nginx_config ]; then
-        nginx_is_installed=1
-    else
-        nginx_is_installed=0
-    fi
-    if [ $v2ray_is_installed -eq 1 ] && [ $nginx_is_installed -eq 1 ]; then
-        is_installed=1
-    else
-        is_installed=0
-    fi
 }
 
 #配置sshd
@@ -1586,10 +1601,10 @@ install_update_v2ray_ws_tls()
             fi
         fi
     }
+    check_SELinux
     if ! grep -q "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" /etc/ssh/sshd_config; then
         setsshd
     fi
-    apt -y -f install
     systemctl stop nginx
     systemctl stop v2ray
     uninstall_firewall
@@ -1841,6 +1856,11 @@ start_menu()
     do
         read -p "您的选择是：" choice
     done
+    if [ $choice -le 5 ] || [ $choice -eq 9 ] || [ $choice -eq 10 ]; then
+        apt -y -f install
+        get_system_info
+        check_important_dependence_installed ca-certificates ca-certificates
+    fi
     if [ $choice -eq 1 ]; then
         install_update_v2ray_ws_tls
     elif [ $choice -eq 2 ]; then
@@ -1861,9 +1881,9 @@ start_menu()
         chmod +x "$0"
         "$0" --update
     elif [ $choice -eq 3 ]; then
-        apt -y -f install
         enter_temp_dir
         install_bbr
+        apt -y -f install
         rm -rf "$temp_dir"
     elif [ $choice -eq 4 ]; then
         if install_update_v2ray; then
@@ -1909,7 +1929,7 @@ start_menu()
     elif [ $choice -eq 7 ]; then
         systemctl stop nginx
         systemctl stop v2ray
-        green  "已停止！"
+        green "已停止！"
     elif [ $choice -eq 8 ]; then
         get_base_information
         get_domainlist
@@ -2083,7 +2103,6 @@ start_menu()
     fi
 }
 
-check_is_installed
 if ! [ "$1" == "--update" ]; then
     update=0
     start_menu
