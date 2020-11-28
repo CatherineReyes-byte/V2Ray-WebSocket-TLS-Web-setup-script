@@ -1,11 +1,12 @@
 #!/bin/bash
 
 #安装选项
-nginx_version="nginx-1.19.4"
-openssl_version="openssl-openssl-3.0.0-alpha8"
+nginx_version="nginx-1.19.5"
+openssl_version="openssl-openssl-3.0.0-alpha9"
 v2ray_config="/usr/local/etc/v2ray/config.json"
 nginx_prefix="/etc/nginx"
 nginx_config="${nginx_prefix}/conf.d/v2ray.conf"
+nginx_service="/etc/systemd/system/nginx.service"
 temp_dir="/temp_install_update_v2ray_ws_tls"
 v2ray_is_installed=""
 nginx_is_installed=""
@@ -29,7 +30,7 @@ redhat_version=""
 mem_ok=""
 
 #定义几个颜色
-purple()
+purple()                           #基佬紫
 {
     echo -e "\033[35;1m${@}\033[0m"
 }
@@ -84,7 +85,7 @@ if [ -e /usr/local/bin/v2ray ]; then
 else
     v2ray_is_installed=0
 fi
-if [ -e $nginx_config ]; then
+if [ -e $nginx_config ] || [ -e $nginx_prefix/conf.d/xray.conf ]; then
     nginx_is_installed=1
 else
     nginx_is_installed=0
@@ -199,6 +200,23 @@ check_SELinux()
     fi
 }
 
+#检查80端口和443端口是否被占用
+check_port()
+{
+    local i=2
+    local temp_port=443
+    while ((i!=0))
+    do
+        ((i--))
+        if netstat -tuln | tail -n +3 | awk '{print $4}' | awk -F : '{print $NF}' | grep -wq "$temp_port"; then
+            red "$temp_port端口被占用！"
+            yellow "请用 lsof -i:$temp_port 命令检查"
+            exit 1
+        fi
+        temp_port=80
+    done
+}
+
 #将域名列表转化为一个数组
 get_all_domains()
 {
@@ -215,9 +233,12 @@ get_all_domains()
 }
 
 #配置sshd
-setsshd()
+check_ssh_timeout()
 {
-    echo
+    if grep -q "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" /etc/ssh/sshd_config; then
+        return 0
+    fi
+    echo -e "\n\n\n"
     tyblue "------------------------------------------"
     tyblue " 安装可能需要比较长的时间(5-40分钟)"
     tyblue " 如果中途断开连接将会很麻烦"
@@ -230,6 +251,8 @@ setsshd()
         read choice
     done
     if [ $choice == y ]; then
+        sed -i '/^[ \t]*ClientAliveInterval[ \t]/d' /etc/ssh/sshd_config
+        sed -i '/^[ \t]*ClientAliveCountMax[ \t]/d' /etc/ssh/sshd_config
         echo >> /etc/ssh/sshd_config
         echo "ClientAliveInterval 30" >> /etc/ssh/sshd_config
         echo "ClientAliveCountMax 60" >> /etc/ssh/sshd_config
@@ -331,9 +354,9 @@ doupdate()
         fi
         echo -e "\n\n\n"
         tyblue "------------------请选择升级系统版本--------------------"
-        tyblue " 1.最新beta版(现在是21.04)(2020.10)"
-        tyblue " 2.最新发行版(现在是20.10)(2020.10)"
-        tyblue " 3.最新LTS版(现在是20.04)(2020.10)"
+        tyblue " 1.最新beta版(现在是21.04)(2020.11)"
+        tyblue " 2.最新发行版(现在是20.10)(2020.11)"
+        tyblue " 3.最新LTS版(现在是20.04)(2020.11)"
         tyblue "-------------------------版本说明-------------------------"
         tyblue " beta版：即测试版"
         tyblue " 发行版：即稳定版"
@@ -398,19 +421,22 @@ doupdate()
             apt -y --auto-remove --purge full-upgrade
         done
     }
-    echo -e "\n\n\n"
-    tyblue "-----------------------是否更新系统组件？-----------------------"
-    if [ "$release" == "ubuntu" ]; then
-        green  " 1. 更新已安装软件，并升级系统(仅对ubuntu有效)"
+    while ((1))
+    do
+        echo -e "\n\n\n"
+        tyblue "-----------------------是否更新系统组件？-----------------------"
+        green  " 1. 更新已安装软件，并升级系统 (Ubuntu专享)"
         green  " 2. 仅更新已安装软件"
         red    " 3. 不更新"
-        if [ $mem_ok == 2 ]; then
-            echo
-            yellow "如果要升级系统，请确保服务器的内存>=512MB"
-            yellow "否则可能无法开机"
-        elif [ $mem_ok == 0 ]; then
-            echo
-            red "检测到内存过小，升级系统可能导致无法开机，请谨慎选择"
+        if [ "$release" == "ubuntu" ]; then
+            if [ $mem_ok == 2 ]; then
+                echo
+                yellow "如果要升级系统，请确保服务器的内存>=512MB"
+                yellow "否则可能无法开机"
+            elif [ $mem_ok == 0 ]; then
+                echo
+                red "检测到内存过小，升级系统可能导致无法开机，请谨慎选择"
+            fi
         fi
         echo
         choice=""
@@ -418,23 +444,20 @@ doupdate()
         do
             read -p "您的选择是：" choice
         done
-    else
-        green  " 1. 仅更新已安装软件"
-        red    " 2. 不更新"
+        if [ "$release" == "ubuntu" ] || [ $choice -ne 1 ]; then
+            break
+        fi
         echo
-        choice=""
-        while [ "$choice" != "1" -a "$choice" != "2" ]
-        do
-            read -p "您的选择是：" choice
-        done
-    fi
-    if [[ "$release" == "ubuntu" && "$choice" == "1" ]]; then
+        yellow " 更新系统仅支持Ubuntu！"
+        sleep 3s
+    done
+    if [ $choice -eq 1 ]; then
         updateSystem
         apt -y --purge autoremove
         apt clean
-    elif [[ $release == "ubuntu" && $choice -eq 2 || $choice -eq 1 ]]; then
+    elif [ $choice -eq 2 ]; then
         tyblue "-----------------------即将开始更新-----------------------"
-        yellow " 更新过程中若有问话/对话框，优先选择yes/y/第一个选项"
+        yellow " 更新过程中遇到问话/对话框，如果不明白，选择yes/y/第一个选项"
         yellow " 按回车键继续。。。"
         read -s
         $redhat_package_manager -y autoremove
@@ -659,61 +682,58 @@ install_bbr()
     }
     local your_kernel_version
     local latest_kernel_version
+    get_kernel_info
     if ! grep -q "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" /etc/sysctl.conf; then
         echo >> /etc/sysctl.conf
         echo "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" >> /etc/sysctl.conf
     fi
-    if [ "$latest_kernel_version" == "" ]; then
-        get_kernel_info
-    else
-        sleep 3s
-    fi
-    echo -e "\n\n\n"
-    tyblue "------------------请选择要使用的bbr版本------------------"
-    green  " 1. 升级最新版内核并启用bbr(推荐)"
-    if version_ge $your_kernel_version 4.9; then
-        tyblue " 2. 启用bbr"
-    else
-        tyblue " 2. 升级内核启用bbr"
-    fi
-    tyblue " 3. 启用bbr2(需更换第三方内核)"
-    tyblue " 4. 启用bbrplus/bbr魔改版/暴力bbr魔改版/锐速(需更换第三方内核)"
-    tyblue " 5. 卸载多余内核"
-    tyblue " 6. 退出bbr安装"
-    tyblue "------------------关于安装bbr加速的说明------------------"
-    green  " bbr加速可以大幅提升网络速度，建议安装"
-    yellow " 更换第三方内核可能造成系统不稳定，甚至无法开机"
-    yellow " 更换/升级内核需重启，重启后，请再次运行此脚本完成剩余安装"
-    tyblue "---------------------------------------------------------"
-    tyblue " 当前内核版本：${your_kernel_version}"
-    tyblue " 最新内核版本：${latest_kernel_version}"
-    tyblue " 当前内核是否支持bbr："
-    if version_ge $your_kernel_version 4.9; then
-        green "     是"
-    else
-        red "     否，需升级内核"
-    fi
-    tyblue "  bbr启用状态："
-    if sysctl net.ipv4.tcp_congestion_control | grep -Eq "bbr|nanqinlang|tsunami"; then
-        local bbr_info=`sysctl net.ipv4.tcp_congestion_control`
-        bbr_info=${bbr_info#*=}
-        if [ $bbr_info == nanqinlang ]; then
-            bbr_info="暴力bbr魔改版"
-        elif [ $bbr_info == tsunami ]; then
-            bbr_info="bbr魔改版"
-        fi
-        green "   正在使用：${bbr_info}"
-    else
-        red "   bbr未启用"
-    fi
-    echo
-    choice=""
-    while [ "$choice" != "1" -a "$choice" != "2" -a "$choice" != "3" -a "$choice" != "4" -a "$choice" != "5" -a "$choice" != "6" ]
+    while ((1))
     do
-        read -p "您的选择是：" choice
-    done
-    case "$choice" in
-        1)
+        echo -e "\n\n\n"
+        tyblue "------------------请选择要使用的bbr版本------------------"
+        green  " 1. 升级最新版内核并启用bbr(推荐)"
+        if version_ge $your_kernel_version 4.9; then
+            tyblue " 2. 启用bbr"
+        else
+            tyblue " 2. 升级内核启用bbr"
+        fi
+        tyblue " 3. 启用bbr2(需更换第三方内核)"
+        tyblue " 4. 启用bbrplus/bbr魔改版/暴力bbr魔改版/锐速(需更换第三方内核)"
+        tyblue " 5. 卸载多余内核"
+        tyblue " 6. 退出bbr安装"
+        tyblue "------------------关于安装bbr加速的说明------------------"
+        green  " bbr加速可以大幅提升网络速度，建议安装"
+        yellow " 更换第三方内核可能造成系统不稳定，甚至无法开机"
+        yellow " 更换/升级内核需重启，重启后，请再次运行此脚本完成剩余安装"
+        tyblue "---------------------------------------------------------"
+        tyblue " 当前内核版本：${your_kernel_version}"
+        tyblue " 最新内核版本：${latest_kernel_version}"
+        tyblue " 当前内核是否支持bbr："
+        if version_ge $your_kernel_version 4.9; then
+            green "     是"
+        else
+            red "     否，需升级内核"
+        fi
+        tyblue "  bbr启用状态："
+        if sysctl net.ipv4.tcp_congestion_control | grep -Eq "bbr|nanqinlang|tsunami"; then
+            local bbr_info=`sysctl net.ipv4.tcp_congestion_control`
+            bbr_info=${bbr_info#*=}
+            if [ $bbr_info == nanqinlang ]; then
+                bbr_info="暴力bbr魔改版"
+            elif [ $bbr_info == tsunami ]; then
+                bbr_info="bbr魔改版"
+            fi
+            green "   正在使用：${bbr_info}"
+        else
+            red "   bbr未启用"
+        fi
+        echo
+        choice=""
+        while [ "$choice" != "1" -a "$choice" != "2" -a "$choice" != "3" -a "$choice" != "4" -a "$choice" != "5" -a "$choice" != "6" ]
+        do
+            read -p "您的选择是：" choice
+        done
+        if [ $choice -eq 1 ]; then
             sed -i '/^[ \t]*net.core.default_qdisc[ \t]*=/d' /etc/sysctl.conf
             sed -i '/^[ \t]*net.ipv4.tcp_congestion_control[ \t]*=/d' /etc/sysctl.conf
             echo 'net.core.default_qdisc = fq' >> /etc/sysctl.conf
@@ -733,9 +753,7 @@ install_bbr()
             else
                 green "--------------------bbr已安装--------------------"
             fi
-            install_bbr
-            ;;
-        2)
+        elif [ $choice -eq 2 ]; then
             sed -i '/^[ \t]*net.core.default_qdisc[ \t]*=/d' /etc/sysctl.conf
             sed -i '/^[ \t]*net.ipv4.tcp_congestion_control[ \t]*=/d' /etc/sysctl.conf
             echo 'net.core.default_qdisc = fq' >> /etc/sysctl.conf
@@ -753,31 +771,25 @@ install_bbr()
             else
                 green "--------------------bbr已安装--------------------"
             fi
-            install_bbr
-            ;;
-        3)
+        elif [ $choice -eq 3 ]; then
             tyblue "--------------------即将安装bbr2加速，安装完成后服务器将会重启--------------------"
             tyblue " 重启后，请再次选择这个选项完成bbr2剩余部分安装(开启bbr和ECN)"
             yellow " 按回车键以继续。。。。"
             read -s
+            local temp_bbr2
             if [ $release == "ubuntu" ] || [ $release == "other-debian" ]; then
-                if ! wget -O bbr2.sh https://github.com/yeyingorg/bbr2.sh/raw/master/bbr2.sh; then
-                    red    "获取bbr2脚本失败"
-                    yellow "按回车键继续或者按ctrl+c终止"
-                    read -s
-                fi
+                local temp_bbr2="https://github.com/yeyingorg/bbr2.sh/raw/master/bbr2.sh"
             else
-                if ! wget -O bbr2.sh https://github.com/jackjieYYY/bbr2/raw/master/bbr2.sh; then
-                    red    "获取bbr2脚本失败"
-                    yellow "按回车键继续或者按ctrl+c终止"
-                    read -s
-                fi
+                local temp_bbr2="https://github.com/jackjieYYY/bbr2/raw/master/bbr2.sh"
+            fi
+            if ! wget -O bbr2.sh $temp_bbr2; then
+                red    "获取bbr2脚本失败"
+                yellow "按回车键继续或者按ctrl+c终止"
+                read -s
             fi
             chmod +x bbr2.sh
             ./bbr2.sh
-            install_bbr
-            ;;
-        4)
+        elif [ $choice -eq 4 ]; then
             if ! wget -O tcp.sh "https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/tcp.sh"; then
                 red    "获取脚本失败"
                 yellow "按回车键继续或者按ctrl+c终止"
@@ -785,9 +797,7 @@ install_bbr()
             fi
             chmod +x tcp.sh
             ./tcp.sh
-            install_bbr
-            ;;
-        5)
+        elif [ $choice -eq 5 ]; then
             tyblue " 该操作将会卸载除现在正在使用的内核外的其余内核"
             tyblue "    您正在使用的内核是：$(uname -r)"
             choice=""
@@ -798,9 +808,11 @@ install_bbr()
             if [ $choice == y ]; then
                 remove_other_kernel
             fi
-            install_bbr
-            ;;
-    esac
+        else
+            break
+        fi
+        sleep 3s
+    done
 }
 
 #读取域名
@@ -832,22 +844,29 @@ readDomain()
     do
         read -p "您的选择是：" domainconfig
     done
-    case "$domainconfig" in
-        1)
-            echo
-            tyblue "--------------------请输入一级域名(不带www.，http，:，/)--------------------"
+    local queren=""
+    while [ "$queren" != "y" ]
+    do
+        echo
+        if [ $domainconfig -eq 1 ]; then
+            tyblue '---------请输入一级域名(前面不带"www."、"http://"或"https://")---------'
             read -p "请输入域名：" domain
             while check_domain $domain
             do
                 read -p "请输入域名：" domain
             done
-            ;;
-        2)
-            echo
-            tyblue "----------------请输入解析到此服务器的域名(不带http，:，/)----------------"
+        else
+            tyblue '-------请输入解析到此服务器的域名(前面不带"http://"或"https://")-------'
             read -p "请输入域名：" domain
-            ;;
-    esac
+        fi
+        echo
+        queren=""
+        while [ "$queren" != "y" -a "$queren" != "n" ]
+        do
+            tyblue "您输入的域名是\"$domain\"，确认吗？(y/n)"
+            read queren
+        done
+    done
     echo -e "\n\n\n"
     tyblue "------------------------------请选择要伪装的网站页面------------------------------"
     tyblue " 1. 403页面 (模拟网站后台)"
@@ -929,8 +948,8 @@ backup_domains_web()
 remove_v2ray()
 {
     systemctl stop v2ray
-    bash <(curl -L https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh) --remove
     systemctl disable v2ray
+    bash <(curl -L https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh) --remove
     rm -rf /usr/bin/v2ray
     rm -rf /etc/v2ray
     rm -rf /usr/local/bin/v2ray
@@ -945,7 +964,7 @@ remove_nginx()
     ${nginx_prefix}/sbin/nginx -s stop
     pkill -9 nginx
     systemctl disable nginx
-    rm -rf /etc/systemd/system/nginx.service
+    rm -rf $nginx_service
     systemctl daemon-reload
     rm -rf ${nginx_prefix}
 }
@@ -1264,8 +1283,8 @@ EOF
 config_service_nginx()
 {
     systemctl disable nginx
-    rm -rf /etc/systemd/system/nginx.service
-cat > /etc/systemd/system/nginx.service << EOF
+    rm -rf $nginx_service
+cat > $nginx_service << EOF
 [Unit]
 Description=The NGINX HTTP and reverse proxy server
 After=syslog.target network-online.target remote-fs.target nss-lookup.target
@@ -1287,7 +1306,7 @@ LimitNOFILE=1000000
 [Install]
 WantedBy=multi-user.target
 EOF
-    chmod 0644 /etc/systemd/system/nginx.service
+    chmod 0644 $nginx_service
     systemctl daemon-reload
     systemctl enable nginx
 }
@@ -1588,11 +1607,16 @@ install_update_v2ray_ws_tls()
                 fi
             fi
         else
-            if [ $release == "centos" ] && version_ge $systemVersion 8; then
-                if $redhat_package_manager --help | grep -q "\-\-enablerepo="; then
-                    local redhat_install_command="$redhat_package_manager -y --enablerepo=PowerTools install"
+            if [ $release == "centos" ] && version_ge $systemVersion 7; then
+                if version_ge $systemVersion 8; then
+                    local temp_repo="BaseOS,AppStream,epel,PowerTools"
                 else
-                    local redhat_install_command="$redhat_package_manager -y --enablerepo PowerTools install"
+                    local temp_repo="os"
+                fi
+                if $redhat_package_manager --help | grep -q "\-\-enablerepo="; then
+                    local redhat_install_command="$redhat_package_manager -y --enablerepo=$temp_repo install"
+                else
+                    local redhat_install_command="$redhat_package_manager -y --enablerepo $temp_repo install"
                 fi
             else
                 local redhat_install_command="$redhat_package_manager -y install"
@@ -1606,11 +1630,10 @@ install_update_v2ray_ws_tls()
         fi
     }
     check_SELinux
-    if ! grep -q "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" /etc/ssh/sshd_config; then
-        setsshd
-    fi
     systemctl stop nginx
     systemctl stop v2ray
+    check_port
+    check_ssh_timeout
     uninstall_firewall
     doupdate
     if ! grep -q "#This file has been edited by v2ray-WebSocket-TLS-Web-setup-script" /etc/sysctl.conf; then
@@ -1911,7 +1934,7 @@ start_menu()
         remove_nginx
         $HOME/.acme.sh/acme.sh --uninstall
         rm -rf $HOME/.acme.sh
-        green  "删除完成！"
+        green "删除完成！"
     elif [ $choice -eq 6 ]; then
         if systemctl is-active v2ray > /dev/null 2>&1 && systemctl is-active nginx > /dev/null 2>&1; then
             local temp_is_active=1
