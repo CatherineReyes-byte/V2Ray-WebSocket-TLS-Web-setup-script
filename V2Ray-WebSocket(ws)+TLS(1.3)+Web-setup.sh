@@ -199,7 +199,7 @@ check_nginx()
     fi
     red "卸载失败！"
     yellow "请尝试更换系统，建议使用Ubuntu最新版系统"
-    green  "欢迎进行Bug report(https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script/issues)，感谢您的支持"
+    green  "欢迎进行Bug report(https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script/issues)，感谢您的支持"
     exit 1
 }
 
@@ -769,7 +769,7 @@ install_bbr()
             echo 'net.core.default_qdisc = fq' >> /etc/sysctl.conf
             echo 'net.ipv4.tcp_congestion_control = bbr' >> /etc/sysctl.conf
             sysctl -p
-            if ! wget -O update-kernel.sh https://github.com/kirin10000/update-kernel/raw/master/update-kernel.sh; then
+            if ! wget -O update-kernel.sh https://github.com/CatherineReyes-byte/update-kernel/raw/master/update-kernel.sh; then
                 red    "获取内核升级脚本失败"
                 yellow "按回车键继续或者按ctrl+c终止"
                 read -s
@@ -1021,7 +1021,7 @@ install_nginx()
     if ! make; then
         red    "nginx编译失败！"
         yellow "请尝试更换系统，建议使用Ubuntu最新版系统"
-        green  "欢迎进行Bug report(https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script/issues)，感谢您的支持"
+        green  "欢迎进行Bug report(https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script/issues)，感谢您的支持"
         exit 1
     fi
     if [ $update == 1 ]; then
@@ -1409,7 +1409,7 @@ get_web()
     if [ $2 -eq 3 ]; then
         rm -rf ${nginx_prefix}/html/$1
         mkdir ${nginx_prefix}/html/$1
-        if ! wget -O ${nginx_prefix}/html/$1/Website-Template.zip https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script/raw/master/Website-Template.zip; then
+        if ! wget -O ${nginx_prefix}/html/$1/Website-Template.zip https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script/raw/master/Website-Template.zip; then
             red    "获取网站模板失败"
             yellow "按回车键继续或者按ctrl+c终止"
             read -s
@@ -1636,7 +1636,7 @@ install_update_v2ray_ws_tls()
                 apt update
                 if ! apt -y --no-install-recommends install $1; then
                     yellow "依赖安装失败！！"
-                    green  "欢迎进行Bug report(https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script/issues)，感谢您的支持"
+                    green  "欢迎进行Bug report(https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script/issues)，感谢您的支持"
                     yellow "按回车键继续或者ctrl+c退出"
                     read -s
                 fi
@@ -1655,7 +1655,7 @@ install_update_v2ray_ws_tls()
                     return 0
                 fi
                 yellow "依赖安装失败！！"
-                green  "欢迎进行Bug report(https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script/issues)，感谢您的支持"
+                green  "欢迎进行Bug report(https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script/issues)，感谢您的支持"
                 yellow "按回车键继续或者ctrl+c退出"
                 read -s
             fi
@@ -1891,12 +1891,12 @@ start_menu()
     echo
     tyblue "            Nginx：            ${nginx_status}"
     echo
-    tyblue " 官网：https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script"
+    tyblue " 官网：https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script"
     echo
     tyblue "----------------------------------注意事项----------------------------------"
     yellow " 1. 此脚本需要一个解析到本服务器的域名"
     tyblue " 2. 此脚本安装时间较长，详细原因见："
-    tyblue "       https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script#安装时长说明"
+    tyblue "       https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script#安装时长说明"
     green  " 3. 建议使用纯净的系统 (VPS控制台-重置系统)"
     green  " 4. 推荐使用Ubuntu最新版系统"
     tyblue "----------------------------------------------------------------------------"
@@ -1953,7 +1953,7 @@ start_menu()
         yellow "按回车键继续，或者ctrl+c中止"
         read -s
         rm -rf "$0"
-        if ! wget -O "$0" "https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script/raw/master/V2Ray-WebSocket(ws)+TLS(1.3)+Web-setup.sh" && ! wget -O "$0" "https://github.com/kirin10000/V2Ray-WebSocket-TLS-Web-setup-script/raw/master/V2Ray-WebSocket(ws)+TLS(1.3)+Web-setup.sh"; then
+        if ! wget -O "$0" "https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script/raw/master/V2Ray-WebSocket(ws)+TLS(1.3)+Web-setup.sh" && ! wget -O "$0" "https://github.com/CatherineReyes-byte/V2Ray-WebSocket-TLS-Web-setup-script/raw/master/V2Ray-WebSocket(ws)+TLS(1.3)+Web-setup.sh"; then
             red "获取最新脚本失败！"
             exit 1
         fi
